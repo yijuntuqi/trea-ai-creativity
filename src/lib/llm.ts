@@ -60,9 +60,9 @@ async function readStream(
 export async function runTask(
   req: LLMRequest,
   onDelta: (text: string) => void,
-  opts: { signal?: AbortSignal } = {},
+  opts: { signal?: AbortSignal; forceMock?: boolean } = {},
 ): Promise<RunResult> {
-  if (import.meta.env.VITE_DEMO_MODE === '1') {
+  if (opts.forceMock || import.meta.env.VITE_DEMO_MODE === '1') {
     const text = mockTask(req.task, req.payload)
     onDelta(text)
     return { text, source: 'mock' }

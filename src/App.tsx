@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import AppShell from './components/AppShell'
 import Home from './pages/Home'
 import Material from './pages/Material'
+import Session from './pages/Session'
 import Setup from './pages/Setup'
 
 function Placeholder({ title, note }: { title: string; note: string }) {
@@ -21,10 +22,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/setup" element={<Setup />} />
           <Route path="/material" element={<Material />} />
-          <Route
-            path="/session/:id"
-            element={<Placeholder title="答辩室" note="三位评委轮流提问" />}
-          />
+          <Route path="/session/:id" element={<Session />} />
           <Route
             path="/report/:id"
             element={<Placeholder title="预演报告" note="四维评分与复盘建议" />}

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Portrait, Question, Report, Session, SessionConfig } from '../types'
+import type { Message, Portrait, Question, Report, Session, SessionConfig } from '../types'
 import { hashText } from '../lib/hash'
 import { truncateMaterial } from '../lib/truncate'
 import { getSession, saveSession } from '../lib/storage'
@@ -12,6 +12,7 @@ export type SessionState = {
   setPortrait(portrait: Portrait): void
   begin(): void
   addQuestion(q: Question): void
+  addMessage(message: Message): void
   answerQuestion(id: string, answer: string, timeSpent: number): void
   evaluateQuestion(id: string, score: number, comment: string, modelAnswer: string): void
   finish(report: Report): void
@@ -76,6 +77,12 @@ export const useSessionStore = create<SessionState>((set, get) => {
       const session = get().session
       if (!session) return
       commit({ ...session, questions: [...session.questions, question], status: 'ongoing' })
+    },
+
+    addMessage(message) {
+      const session = get().session
+      if (!session) return
+      commit({ ...session, messages: [...session.messages, message], status: 'ongoing' })
     },
 
     answerQuestion(id, answer, timeSpent) {
