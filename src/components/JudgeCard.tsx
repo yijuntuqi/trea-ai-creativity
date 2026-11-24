@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import type { Judge } from '../types'
+import JudgeAvatar from './JudgeAvatar'
 
 export default function JudgeCard({ judge }: { judge: Judge }) {
   const [failed, setFailed] = useState(false)
@@ -15,12 +16,7 @@ export default function JudgeCard({ judge }: { judge: Judge }) {
     >
       <div className="flex items-center gap-3">
         {failed ? (
-          <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-base font-semibold"
-            style={{ backgroundColor: `${judge.color}33`, color: judge.color }}
-          >
-            {judge.name.slice(0, 1)}
-          </div>
+          <JudgeAvatar judge={judge} className="h-11 w-11 shrink-0 rounded-full" />
         ) : (
           <img
             src={judge.avatar}
