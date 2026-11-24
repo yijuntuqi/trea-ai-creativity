@@ -71,8 +71,11 @@ export async function generatePortrait(
 ): Promise<{ portrait: Portrait; source: 'live' | 'mock' }> {
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const result = await runTask(
-      'portrait',
-      { material: material.text, config },
+      {
+        task: 'portrait',
+        payload: { material: material.text, config },
+        sessionId: material.hash,
+      },
       onDelta ?? (() => {}),
     )
     try {
