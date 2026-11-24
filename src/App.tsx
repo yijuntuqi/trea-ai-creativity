@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import AppShell from './components/AppShell'
 import Home from './pages/Home'
 import Material from './pages/Material'
+import ReportPage from './pages/Report'
 import Session from './pages/Session'
 import Setup from './pages/Setup'
 
@@ -23,10 +24,7 @@ export default function App() {
           <Route path="/setup" element={<Setup />} />
           <Route path="/material" element={<Material />} />
           <Route path="/session/:id" element={<Session />} />
-          <Route
-            path="/report/:id"
-            element={<Placeholder title="预演报告" note="四维评分与复盘建议" />}
-          />
+          <Route path="/report/:id" element={<ReportPage />} />
           <Route
             path="/history"
             element={<Placeholder title="历史记录" note="本机保存的过往场次" />}
