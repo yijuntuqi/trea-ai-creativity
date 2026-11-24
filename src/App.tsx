@@ -1,5 +1,8 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import AppShell from './components/AppShell'
+import Home from './pages/Home'
+import Material from './pages/Material'
+import Setup from './pages/Setup'
 
 function Placeholder({ title, note }: { title: string; note: string }) {
   return (
@@ -15,18 +18,9 @@ export default function App() {
     <BrowserRouter>
       <AppShell>
         <Routes>
-          <Route
-            path="/"
-            element={<Placeholder title="答辩预演官" note="让评委的问题，先在你面前出现" />}
-          />
-          <Route
-            path="/setup"
-            element={<Placeholder title="建场" note="选择答辩类型、学科、严格度与限时" />}
-          />
-          <Route
-            path="/material"
-            element={<Placeholder title="材料" note="上传论文或 PPT，或直接粘贴大纲" />}
-          />
+          <Route path="/" element={<Home />} />
+          <Route path="/setup" element={<Setup />} />
+          <Route path="/material" element={<Material />} />
           <Route
             path="/session/:id"
             element={<Placeholder title="答辩室" note="三位评委轮流提问" />}

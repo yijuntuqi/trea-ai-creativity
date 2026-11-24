@@ -69,7 +69,7 @@ export const useSessionStore = create<SessionState>((set, get) => {
     begin() {
       const session = get().session
       if (!session) return
-      commit({ ...session, status: session.questions.length > 0 ? 'ongoing' : 'ready' })
+      commit({ ...session, status: 'ongoing' })
     },
 
     addQuestion(question) {
