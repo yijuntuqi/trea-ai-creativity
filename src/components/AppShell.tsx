@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 export default function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-ink text-paper">
-      <header className="border-b border-white/10 bg-ink-soft/60 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-ink/80 backdrop-blur">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-5">
           <Link to="/" className="font-serif text-lg tracking-[0.2em] text-gold">
             答辩预演官

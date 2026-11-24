@@ -1,11 +1,18 @@
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 import type { Judge } from '../types'
 
 export default function JudgeCard({ judge }: { judge: Judge }) {
   const [failed, setFailed] = useState(false)
 
   return (
-    <article className="rounded-2xl border border-white/10 bg-ink-soft/60 p-4">
+    <motion.article
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: 'easeOut' }}
+      whileHover={{ y: -2 }}
+      className="rounded-2xl border border-white/10 bg-ink-soft/60 p-4"
+    >
       <div className="flex items-center gap-3">
         {failed ? (
           <div
@@ -28,6 +35,6 @@ export default function JudgeCard({ judge }: { judge: Judge }) {
         </div>
       </div>
       <p className="mt-3 text-sm text-paper/70">关注：{judge.focus}</p>
-    </article>
+    </motion.article>
   )
 }

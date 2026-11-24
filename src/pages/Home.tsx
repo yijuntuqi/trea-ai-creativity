@@ -15,7 +15,7 @@ export default function Home() {
 
   return (
     <div className="space-y-14">
-      <section className="pt-8 text-center md:pt-16">
+      <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-stage-grid px-6 py-12 text-center md:py-16">
         <p className="text-xs tracking-[0.4em] text-gold/70">AI 答辩预演</p>
         <h1 className="mt-4 font-serif text-4xl text-paper md:text-5xl">答辩预演官</h1>
         <p className="mt-4 text-lg text-paper/70">让评委的问题，先在你面前出现</p>

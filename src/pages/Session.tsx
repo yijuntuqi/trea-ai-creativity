@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import type { DefenseType, Strictness } from '../types'
+import type { DefenseType, Portrait, Strictness } from '../types'
 import { JUDGES, judgeById } from '../lib/judges'
 import { isSpeechSupported, speak, stopSpeaking } from '../lib/tts'
 import { useDefenseEngine } from '../hooks/useDefenseEngine'
@@ -25,6 +25,43 @@ const STRICTNESS_LABEL: Record<Strictness, string> = {
   gentle: '温和',
   standard: '标准',
   press: '压力',
+}
+
+function PortraitPoints({ portrait }: { portrait: Portrait }) {
+  return (
+    <div className="space-y-3 text-sm leading-relaxed text-paper/80">
+      <div>
+        <p className="text-xs text-paper/40">题目</p>
+        <p className="mt-1">{portrait.topic}</p>
+      </div>
+      <div>
+        <p className="text-xs text-paper/40">方法</p>
+        <p className="mt-1">{portrait.method}</p>
+      </div>
+      <div>
+        <p className="text-xs text-paper/40">创新点</p>
+        <ul className="mt-1 space-y-1">
+          {portrait.innovation.map((item) => (
+            <li key={item} className="flex gap-2">
+              <span className="text-gold/60">·</span>
+              {item}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <p className="text-xs text-paper/40">局限</p>
+        <ul className="mt-1 space-y-1">
+          {portrait.limitations.map((item) => (
+            <li key={item} className="flex gap-2">
+              <span className="text-gold/60">·</span>
+              {item}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
 }
 
 export default function Session() {
@@ -134,43 +171,23 @@ export default function Session() {
         </div>
       </header>
 
+      <details className="rounded-2xl border border-white/10 bg-ink-soft/60 p-4 lg:hidden">
+        <summary className="cursor-pointer text-sm text-gold/80">材料要点</summary>
+        <div className="mt-3">
+          {session.portrait ? (
+            <PortraitPoints portrait={session.portrait} />
+          ) : (
+            <p className="text-sm text-paper/50">未生成画像，按材料原文作答。</p>
+          )}
+        </div>
+      </details>
+
       <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)_230px]">
         <aside className="hidden lg:block">
-          <Card className="space-y-4">
+          <Card className="space-y-4 lg:sticky lg:top-20">
             <h2 className="text-xs tracking-[0.2em] text-gold/70">材料要点</h2>
             {session.portrait ? (
-              <div className="space-y-3 text-sm leading-relaxed text-paper/80">
-                <div>
-                  <p className="text-xs text-paper/40">题目</p>
-                  <p className="mt-1">{session.portrait.topic}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-paper/40">方法</p>
-                  <p className="mt-1">{session.portrait.method}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-paper/40">创新点</p>
-                  <ul className="mt-1 space-y-1">
-                    {session.portrait.innovation.map((item) => (
-                      <li key={item} className="flex gap-2">
-                        <span className="text-gold/60">·</span>
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <p className="text-xs text-paper/40">局限</p>
-                  <ul className="mt-1 space-y-1">
-                    {session.portrait.limitations.map((item) => (
-                      <li key={item} className="flex gap-2">
-                        <span className="text-gold/60">·</span>
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
+              <PortraitPoints portrait={session.portrait} />
             ) : (
               <p className="text-sm text-paper/50">未生成画像，按材料原文作答。</p>
             )}
@@ -186,7 +203,7 @@ export default function Session() {
             )}
           </Card>
 
-          <Card className="space-y-3">
+          <Card className="sticky bottom-0 z-20 space-y-3 backdrop-blur lg:static">
             <Textarea
               aria-label="回答"
               rows={4}
@@ -217,8 +234,8 @@ export default function Session() {
           </Card>
         </div>
 
-        <aside className="space-y-4">
-          <Card className="space-y-3">
+        <aside className="order-first space-y-4 lg:order-none">
+          <Card className="sticky top-16 z-20 space-y-3 bg-ink-soft/90 backdrop-blur lg:static lg:bg-ink-soft/70">
             <div className="flex items-center justify-between">
               <h2 className="text-xs tracking-[0.2em] text-gold/70">当前评委</h2>
               <Timer seconds={seconds} limit={pending?.suggestedSeconds} />
