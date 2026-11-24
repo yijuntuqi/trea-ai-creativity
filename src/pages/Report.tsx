@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toPng } from 'html-to-image'
 import { getSession } from '../lib/storage'
+import { DEMO_SESSION } from '../mocks/demo'
 import ScoreRadar from '../components/ScoreRadar'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -9,7 +10,7 @@ import { Card } from '../components/ui/Card'
 export default function Report() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const session = id ? getSession(id) : undefined
+  const session = (id ? getSession(id) : undefined) ?? (id === DEMO_SESSION.id ? DEMO_SESSION : undefined)
   const report = session?.report
   const reportRef = useRef<HTMLDivElement>(null)
   const [exporting, setExporting] = useState(false)

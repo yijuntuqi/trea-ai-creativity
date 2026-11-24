@@ -1,9 +1,18 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { JUDGES } from '../lib/judges'
+import { loadSessions } from '../lib/storage'
+import { DEMO_SESSION } from '../mocks/demo'
 import JudgeCard from '../components/JudgeCard'
 import { Button } from '../components/ui/Button'
 
 export default function Home() {
+  const navigate = useNavigate()
+
+  function openSample() {
+    if (loadSessions().length === 0) navigate(`/report/${DEMO_SESSION.id}`)
+    else navigate('/history')
+  }
+
   return (
     <div className="space-y-14">
       <section className="pt-8 text-center md:pt-16">
@@ -17,11 +26,9 @@ export default function Home() {
           <Link to="/setup">
             <Button size="lg">立即预演</Button>
           </Link>
-          <Link to="/history">
-            <Button size="lg" variant="ghost">
-              查看示例报告
-            </Button>
-          </Link>
+          <Button size="lg" variant="ghost" onClick={openSample}>
+            查看示例报告
+          </Button>
         </div>
         <p className="mt-4 text-xs text-paper/35">材料仅在浏览器内解析，不会上传服务器</p>
       </section>
