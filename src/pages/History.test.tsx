@@ -101,6 +101,20 @@ it('starts a retry copy from a finished session', async () => {
   expect(retry?.material.hash).toBe('h_a')
   expect(retry?.questions).toEqual([])
   expect(retry?.report).toBeUndefined()
+  expect(retry?.retryFrom?.id).toBe('s_a')
+})
+
+it('marks a retry session with the date of its source', () => {
+  const source = finishedSession()
+  saveSession({
+    ...finishedSession(),
+    id: 's_retry',
+    createdAt: Date.parse('2026-11-23T09:00:00+08:00'),
+    retryFrom: { id: source.id, createdAt: source.createdAt },
+  })
+  render(<History />)
+
+  expect(screen.getByText('源自 11 月 21 日那场')).toBeInTheDocument()
 })
 
 it('shows an empty state without sessions', () => {

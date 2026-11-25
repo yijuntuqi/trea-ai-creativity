@@ -178,7 +178,7 @@ export default function Material() {
       <header>
         <h1 className="font-serif text-3xl text-paper">上传材料</h1>
         <p className="mt-2 text-sm text-paper/60">
-          支持 PDF、PPTX、Word、Excel、Markdown、JSON、CSV、TXT，可一次上传多个文件；文件只在浏览器内解析，不会上传到云端。
+          支持 PDF、PPTX、Word、Excel、Markdown、JSON、CSV、TXT，可一次上传多个文件；文件只在浏览器内解析，原始文件不会上传。未登录时记录只在本机，登录后解析文本会同步到云端。
         </p>
       </header>
 

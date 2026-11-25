@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Session } from '../types'
+import { clearCloudSessions, deleteCloudSession } from '../lib/cloud'
 import { clearSessions, deleteSession, loadSessions } from '../lib/storage'
 import { typeLabel } from '../lib/labels'
+import { useAuthStore } from '../store/auth'
 import { useSessionStore } from '../store/session'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -20,11 +22,29 @@ function sessionTitle(session: Session): string {
   return session.material.fileName ?? '粘贴材料'
 }
 
+function originLabel(session: Session, sessions: Session[]): string | null {
+  if (!session.retryFrom) return null
+  const exists = sessions.some((item) => item.id === session.retryFrom?.id)
+  if (!exists) return null
+  const date = new Date(session.retryFrom.createdAt)
+  return `源自 ${date.getMonth() + 1} 月 ${date.getDate()} 日那场`
+}
+
 export default function History() {
   const navigate = useNavigate()
   const restore = useSessionStore((state) => state.restore)
   const startRetry = useSessionStore((state) => state.startRetry)
+  const user = useAuthStore((state) => state.user)
+  const syncAt = useAuthStore((state) => state.syncAt)
   const [sessions, setSessions] = useState<Session[]>(() => loadSessions())
+
+  useEffect(() => {
+    if (user) void useAuthStore.getState().syncNow()
+  }, [user?.id])
+
+  useEffect(() => {
+    setSessions(loadSessions())
+  }, [syncAt, user?.id])
 
   function remove(session: Session) {
     const confirmed = window.confirm(
@@ -32,12 +52,14 @@ export default function History() {
     )
     if (!confirmed) return
     deleteSession(session.id)
+    void deleteCloudSession(session.id)
     setSessions(loadSessions())
   }
 
   function clearAll() {
     if (!window.confirm('确定清空全部预演记录？该操作不可撤销。')) return
     clearSessions()
+    void clearCloudSessions()
     setSessions([])
   }
 
@@ -56,7 +78,11 @@ export default function History() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-serif text-3xl text-paper">历史记录</h1>
-          <p className="mt-2 text-sm text-paper/60">本机保存的过往场次，共 {sessions.length} 场。</p>
+          <p className="mt-2 text-sm text-paper/60">
+            {user
+              ? `已登录 ${user.email}，云端与本机记录已合并，共 ${sessions.length} 场。`
+              : `本机保存的过往场次，共 ${sessions.length} 场。登录后可跨设备同步。`}
+          </p>
         </div>
         {sessions.length > 0 && (
           <Button variant="ghost" onClick={clearAll}>
@@ -79,6 +105,11 @@ export default function History() {
                   <p className="text-sm text-paper/85">
                     {typeLabel(session.config)} · {sessionTitle(session)}
                   </p>
+                  {originLabel(session, sessions) && (
+                    <span className="mt-1 inline-block rounded-full border border-white/12 bg-white/[0.03] px-2 py-0.5 text-[11px] text-paper/45">
+                      {originLabel(session, sessions)}
+                    </span>
+                  )}
                   <p className="mt-1 text-xs text-paper/45">
                     {new Date(session.createdAt).toLocaleString('zh-CN')}
                     <span className="mx-1">·</span>

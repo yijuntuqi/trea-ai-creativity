@@ -25,6 +25,7 @@ it('returns empty list on empty storage', () => {
 it('saves and reads a session by id', () => {
   saveSession(makeSession('a', 1))
   expect(getSession('a')?.id).toBe('a')
+  expect(getSession('a')?.updatedAt).toBeGreaterThan(0)
 })
 
 it('keeps 20 newest sessions, newest first', () => {

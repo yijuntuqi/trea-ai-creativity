@@ -163,7 +163,7 @@ export default function Home() {
           <div>
             <h2 className="font-serif text-2xl text-paper">下一场答辩，先在预演里过一遍</h2>
             <p className="mt-2 text-sm text-paper/50">
-              不需要注册，材料只在浏览器内解析，随时中断、随时在同一进度继续。
+              不登录也能用：材料只在浏览器内解析，随时中断、随时在同一进度继续；登录后历史记录可跨设备同步。
             </p>
           </div>
           <Button size="lg" onClick={() => navigate('/setup')}>

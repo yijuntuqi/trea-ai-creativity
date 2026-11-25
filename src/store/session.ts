@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { Message, Portrait, Question, Report, Session, SessionConfig } from '../types'
+import { queueCloudSync } from '../lib/cloud'
 import { hashText } from '../lib/hash'
 import { normalizeMaterial } from '../lib/material'
 import { getSession, saveSession } from '../lib/storage'
@@ -55,6 +56,7 @@ export const useSessionStore = create<SessionState>((set, get) => {
       commit({
         id: newId(),
         createdAt: Date.now(),
+        retryFrom: source.retryFrom ?? { id: source.id, createdAt: source.createdAt },
         config: { ...source.config },
         material: { ...source.material },
         portrait: source.portrait,

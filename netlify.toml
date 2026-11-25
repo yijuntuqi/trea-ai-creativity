@@ -4,7 +4,7 @@
   functions = "netlify/functions"
 
 [build.environment]
-  SECRETS_SCAN_OMIT_KEYS = "MAAS_BASE_URL"
+  SECRETS_SCAN_OMIT_KEYS = "MAAS_BASE_URL,VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY"
 
 [functions]
   node_bundler = "esbuild"

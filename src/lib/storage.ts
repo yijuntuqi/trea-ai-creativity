@@ -23,10 +23,18 @@ export function getSession(id: string): Session | undefined {
 }
 
 export function saveSession(session: Session): void {
+  const next = { ...session, updatedAt: session.updatedAt ?? Date.now() }
+  const list = loadSessions().filter((item) => item.id !== next.id)
+  list.unshift(next)
+  saveSessions(list)
+}
+
+export function saveSessions(sessions: Session[]): void {
   try {
-    const list = loadSessions().filter((item) => item.id !== session.id)
-    list.unshift(session)
-    const next = list.sort((a, b) => b.createdAt - a.createdAt).slice(0, LIMIT)
+    const next = sessions
+      .slice()
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, LIMIT)
     localStorage.setItem(KEY, JSON.stringify(next))
   } catch {
     // 存储失败（隐私模式/超额）不阻塞答辩流程

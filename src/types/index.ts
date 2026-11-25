@@ -100,6 +100,8 @@ export type Report = {
 export type Session = {
   id: string
   createdAt: number
+  updatedAt?: number
+  retryFrom?: { id: string; createdAt: number }
   config: SessionConfig
   material: Material
   portrait?: Portrait

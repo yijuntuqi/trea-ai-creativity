@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import clsx from 'clsx'
+import { useAuthStore } from '../store/auth'
 
 function navClass({ isActive }: { isActive: boolean }): string {
   return clsx(
@@ -12,6 +13,8 @@ function navClass({ isActive }: { isActive: boolean }): string {
 }
 
 export default function AppShell({ children }: { children: ReactNode }) {
+  const user = useAuthStore((state) => state.user)
+
   return (
     <div className="relative min-h-[100dvh] overflow-x-hidden bg-ink text-paper">
       <div aria-hidden className="app-canvas pointer-events-none fixed inset-0 -z-10" />
@@ -39,6 +42,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <NavLink to="/history" className={navClass}>
               历史记录
             </NavLink>
+            <NavLink to="/account" className={navClass}>
+              {user ? '账号' : '登录'}
+            </NavLink>
           </nav>
         </div>
       </header>
@@ -47,7 +53,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
       <footer className="mt-16 border-t border-white/[0.06]">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-5 py-8 text-xs text-paper/35 md:flex-row md:items-center md:justify-between">
-          <p>材料仅在浏览器内解析，不会上传到云端；API 调用为匿名额度。</p>
+          <p>未登录时记录只在本机；登录后材料文本与答辩记录同步到云端，原始文件不上传。</p>
           <p className="tracking-[0.18em]">答辩预演官 · AI 多评委模拟</p>
         </div>
       </footer>
