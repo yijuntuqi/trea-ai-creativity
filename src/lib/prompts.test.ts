@@ -1,9 +1,9 @@
 import { buildPrompt } from './prompts'
 
-it('uses plus model and 1500 tokens for report', () => {
+it('uses plus model and 3000 tokens for report', () => {
   const prompt = buildPrompt('report', {})
   expect(prompt.model).toBe('qwen3.8-plus')
-  expect(prompt.maxTokens).toBe(1500)
+  expect(prompt.maxTokens).toBe(3000)
 })
 
 it('forbids fabrication in portrait system', () => {
