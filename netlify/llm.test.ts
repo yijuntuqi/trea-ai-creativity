@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import handler from './llm'
+import handler from './functions/llm'
 
 function post(body: unknown): Request {
   return new Request('http://localhost/api/llm', { method: 'POST', body: JSON.stringify(body) })
