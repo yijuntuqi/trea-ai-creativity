@@ -69,7 +69,10 @@ export async function runTask(
   }
 
   try {
-    const response = await fetch('/api/llm', {
+    const base = import.meta.env.DEV && import.meta.env.VITE_PROXY_SITE
+      ? `${import.meta.env.VITE_PROXY_SITE.replace(/\/$/, '')}/api/llm`
+      : '/api/llm'
+    const response = await fetch(base, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(req),

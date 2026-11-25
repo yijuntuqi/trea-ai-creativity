@@ -22,10 +22,16 @@ function overDailyLimit(): boolean {
   return callCount > DAILY_LIMIT
 }
 
+const CORS_HEADERS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'POST, OPTIONS',
+  'access-control-allow-headers': 'content-type',
+}
+
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...CORS_HEADERS },
   })
 }
 
@@ -34,6 +40,9 @@ function sseFrame(payload: unknown): Uint8Array {
 }
 
 export default async function handler(req: Request): Promise<Response> {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: CORS_HEADERS })
+  }
   if (req.method !== 'POST') {
     return json(405, { error: { code: 'METHOD_NOT_ALLOWED' } })
   }
@@ -158,6 +167,7 @@ export default async function handler(req: Request): Promise<Response> {
       'content-type': 'text/event-stream; charset=utf-8',
       'cache-control': 'no-cache',
       connection: 'keep-alive',
+      ...CORS_HEADERS,
     },
   })
 }
