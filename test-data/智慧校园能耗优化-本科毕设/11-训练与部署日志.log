@@ -1,0 +1,73 @@
+[2025-04-08 09:23:00] epoch=001 lr=0.001000 train_loss=0.4134 val_loss=0.4450 gpu_mem=9971MiB
+[2025-04-08 09:34:00] epoch=002 lr=0.001000 train_loss=0.3963 val_loss=0.4229 gpu_mem=10576MiB
+[2025-04-08 09:45:00] epoch=003 lr=0.001000 train_loss=0.3908 val_loss=0.4159 gpu_mem=10193MiB
+[2025-04-08 09:56:00] epoch=004 lr=0.001000 train_loss=0.3794 val_loss=0.4030 gpu_mem=11070MiB
+[2025-04-08 10:07:00] epoch=005 lr=0.000950 train_loss=0.3718 val_loss=0.3950 gpu_mem=9975MiB
+[2025-04-08 10:18:00] epoch=006 lr=0.000950 train_loss=0.3671 val_loss=0.3928 gpu_mem=9840MiB
+[2025-04-08 10:29:00] epoch=007 lr=0.000950 train_loss=0.3547 val_loss=0.3809 gpu_mem=10535MiB
+[2025-04-08 10:40:00] epoch=008 lr=0.000950 train_loss=0.3483 val_loss=0.3709 gpu_mem=9872MiB
+[2025-04-08 10:51:00] epoch=009 lr=0.000950 train_loss=0.3385 val_loss=0.3631 gpu_mem=11071MiB
+[2025-04-08 11:02:00] epoch=010 lr=0.000902 train_loss=0.3275 val_loss=0.3518 gpu_mem=10958MiB
+[2025-04-08 11:13:00] epoch=011 lr=0.000902 train_loss=0.3240 val_loss=0.3459 gpu_mem=10971MiB
+[2025-04-08 11:24:00] epoch=012 lr=0.000902 train_loss=0.3124 val_loss=0.3371 gpu_mem=10973MiB
+[2025-04-08 11:35:00] epoch=013 lr=0.000902 train_loss=0.3034 val_loss=0.3245 gpu_mem=10789MiB
+[2025-04-08 11:46:00] epoch=014 lr=0.000902 train_loss=0.3001 val_loss=0.3208 gpu_mem=11115MiB
+[2025-04-08 11:57:00] epoch=015 lr=0.000857 train_loss=0.2895 val_loss=0.3116 gpu_mem=10892MiB
+[2025-04-08 12:08:00] epoch=016 lr=0.000857 train_loss=0.2838 val_loss=0.3056 gpu_mem=10200MiB
+[2025-04-08 12:19:00] epoch=017 lr=0.000857 train_loss=0.2790 val_loss=0.2960 gpu_mem=10672MiB
+[2025-04-08 12:30:00] epoch=018 lr=0.000857 train_loss=0.2680 val_loss=0.2854 gpu_mem=10973MiB
+[2025-04-08 12:41:00] epoch=019 lr=0.000857 train_loss=0.2635 val_loss=0.2825 gpu_mem=10023MiB
+[2025-04-08 12:52:00] epoch=020 lr=0.000815 train_loss=0.2579 val_loss=0.2747 gpu_mem=10424MiB
+[2025-04-08 12:52:00] INFO saved checkpoint runs/ckpt_epoch20.pt
+[2025-04-08 13:03:00] epoch=021 lr=0.000815 train_loss=0.2559 val_loss=0.2735 gpu_mem=10247MiB
+[2025-04-08 13:14:00] epoch=022 lr=0.000815 train_loss=0.2447 val_loss=0.2595 gpu_mem=10044MiB
+[2025-04-08 13:25:00] epoch=023 lr=0.000815 train_loss=0.2424 val_loss=0.2613 gpu_mem=10287MiB
+[2025-04-08 13:36:00] epoch=024 lr=0.000815 train_loss=0.2337 val_loss=0.2479 gpu_mem=11013MiB
+[2025-04-08 13:47:00] epoch=025 lr=0.000774 train_loss=0.2262 val_loss=0.2413 gpu_mem=10720MiB
+[2025-04-08 13:58:00] epoch=026 lr=0.000774 train_loss=0.2277 val_loss=0.2410 gpu_mem=10652MiB
+[2025-04-08 14:09:00] epoch=027 lr=0.000774 train_loss=0.2177 val_loss=0.2309 gpu_mem=10262MiB
+[2025-04-08 14:20:00] epoch=028 lr=0.000774 train_loss=0.2148 val_loss=0.2327 gpu_mem=9916MiB
+[2025-04-08 14:31:00] epoch=029 lr=0.000774 train_loss=0.2086 val_loss=0.2261 gpu_mem=9990MiB
+[2025-04-08 14:42:00] epoch=030 lr=0.000735 train_loss=0.2020 val_loss=0.2190 gpu_mem=10572MiB
+[2025-04-08 14:53:00] epoch=031 lr=0.000735 train_loss=0.1983 val_loss=0.2094 gpu_mem=10341MiB
+[2025-04-08 15:04:00] epoch=032 lr=0.000735 train_loss=0.1934 val_loss=0.2051 gpu_mem=10740MiB
+[2025-04-08 15:15:00] epoch=033 lr=0.000735 train_loss=0.1926 val_loss=0.2044 gpu_mem=10011MiB
+[2025-04-08 15:26:00] epoch=034 lr=0.000735 train_loss=0.1850 val_loss=0.1988 gpu_mem=10913MiB
+[2025-04-08 15:37:00] epoch=035 lr=0.000698 train_loss=0.1806 val_loss=0.1917 gpu_mem=10004MiB
+[2025-04-08 15:48:00] epoch=036 lr=0.000698 train_loss=0.1752 val_loss=0.1899 gpu_mem=10710MiB
+[2025-04-08 15:59:00] epoch=037 lr=0.000698 train_loss=0.1737 val_loss=0.1868 gpu_mem=10648MiB
+[2025-04-08 16:10:00] epoch=038 lr=0.000698 train_loss=0.1700 val_loss=0.1843 gpu_mem=10645MiB
+[2025-04-08 16:21:00] epoch=039 lr=0.000698 train_loss=0.1601 val_loss=0.1741 gpu_mem=11109MiB
+[2025-04-08 16:32:00] epoch=040 lr=0.000663 train_loss=0.1616 val_loss=0.1732 gpu_mem=10670MiB
+[2025-04-08 16:32:00] INFO saved checkpoint runs/ckpt_epoch40.pt
+[2025-04-08 16:43:00] epoch=041 lr=0.000663 train_loss=0.1551 val_loss=0.1676 gpu_mem=10940MiB
+[2025-04-08 16:54:00] epoch=042 lr=0.000663 train_loss=0.1529 val_loss=0.1609 gpu_mem=10383MiB
+[2025-04-08 17:05:00] epoch=043 lr=0.000663 train_loss=0.1453 val_loss=0.1563 gpu_mem=10480MiB
+[2025-04-08 17:16:00] epoch=044 lr=0.000663 train_loss=0.1486 val_loss=0.1604 gpu_mem=10681MiB
+[2025-04-08 17:27:00] epoch=045 lr=0.000630 train_loss=0.1394 val_loss=0.1519 gpu_mem=9960MiB
+[2025-04-08 17:38:00] epoch=046 lr=0.000630 train_loss=0.1367 val_loss=0.1474 gpu_mem=10032MiB
+[2025-04-08 17:49:00] epoch=047 lr=0.000630 train_loss=0.1326 val_loss=0.1422 gpu_mem=10764MiB
+[2025-04-08 18:00:00] epoch=048 lr=0.000630 train_loss=0.1339 val_loss=0.1462 gpu_mem=10357MiB
+[2025-04-08 18:11:00] epoch=049 lr=0.000630 train_loss=0.1244 val_loss=0.1324 gpu_mem=10090MiB
+[2025-04-08 18:22:00] epoch=050 lr=0.000599 train_loss=0.1273 val_loss=0.1356 gpu_mem=11194MiB
+[2025-04-08 18:33:00] epoch=051 lr=0.000599 train_loss=0.1186 val_loss=0.1278 gpu_mem=10665MiB
+[2025-04-08 18:44:00] epoch=052 lr=0.000599 train_loss=0.1230 val_loss=0.1311 gpu_mem=10367MiB
+[2025-04-08 18:55:00] epoch=053 lr=0.000599 train_loss=0.1164 val_loss=0.1257 gpu_mem=10904MiB
+[2025-04-08 19:06:00] epoch=054 lr=0.000599 train_loss=0.1155 val_loss=0.1217 gpu_mem=10890MiB
+[2025-04-08 19:17:00] epoch=055 lr=0.000569 train_loss=0.1094 val_loss=0.1195 gpu_mem=9976MiB
+[2025-04-08 19:28:00] epoch=056 lr=0.000569 train_loss=0.1062 val_loss=0.1110 gpu_mem=10819MiB
+[2025-04-08 19:39:00] epoch=057 lr=0.000569 train_loss=0.1048 val_loss=0.1092 gpu_mem=10735MiB
+[2025-04-08 19:50:00] epoch=058 lr=0.000569 train_loss=0.1041 val_loss=0.1101 gpu_mem=10454MiB
+[2025-04-08 20:01:00] epoch=059 lr=0.000569 train_loss=0.1000 val_loss=0.1088 gpu_mem=10360MiB
+[2025-04-08 20:12:00] epoch=060 lr=0.000540 train_loss=0.1021 val_loss=0.1083 gpu_mem=10593MiB
+[2025-04-08 20:31:05] INFO training finished, best val_loss=0.1673 at epoch 47
+[2025-04-08 20:33:12] INFO start distillation: teacher=STGNN, student=STGNN-S (0.42M)
+[2025-04-08 20:58:44] INFO distillation done, student MAE=0.185 (teacher 0.183)
+[2025-04-08 21:02:10] INFO start INT8 static quantization, calibration samples=2048
+[2025-04-08 21:09:37] INFO export tensorrt engine: runs/student_int8.trt (1.7 MB)
+[2025-04-09 09:15:02] INFO deploy to edge gateway 10.21.33.18
+[2025-04-09 09:16:48] INFO gateway health check ok, latency=23ms, mem=312MB
+[2025-05-12 00:00:03] INFO pilot started: 3 teaching buildings + 2 lab buildings
+[2025-05-19 17:42:19] WARN predict peak 92.4% of transformer capacity, trigger schedule
+[2025-05-19 17:43:01] INFO schedule applied: shift 48kW from 实验楼C to 图书馆
+[2025-06-20 23:59:59] INFO pilot finished, peak reduction=11.6%, incidents=0

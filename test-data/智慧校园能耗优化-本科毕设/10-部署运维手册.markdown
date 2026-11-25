@@ -1,0 +1,54 @@
+# 边缘网关部署运维手册
+
+## 1. 硬件与系统
+
+- 设备：Jetson Orin Nano 8GB
+- 系统：Ubuntu 22.04 + JetPack 6.0
+- 网络：校园内网，固定 IP，允许访问 MQTT Broker（1883）与云端训练服务器（443）
+
+## 2. 部署步骤
+
+1. 拷贝模型与配置
+
+   ```bash
+   sudo mkdir -p /opt/energy/models
+   sudo cp runs/student_int8.trt /opt/energy/models/
+   sudo cp configs/edge.yaml /opt/energy/
+   ```
+
+2. 安装服务
+
+   ```bash
+   cd /opt/energy
+   python3 -m venv venv && source venv/bin/activate
+   pip install fastapi uvicorn paho-mqtt pynvml
+   sudo cp energy-gateway.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now energy-gateway
+   ```
+
+3. 健康检查
+
+   ```bash
+   curl http://127.0.0.1:8000/health
+   # {"status":"ok","model":"stgnn_int8","latency_ms":23}
+   ```
+
+## 3. 日常巡检
+
+| 项目 | 频率 | 阈值 | 处理方式 |
+| --- | --- | --- | --- |
+| 推理延迟 | 每日 | < 50 ms | 超过则检查 GPU 频率与温度 |
+| 显存占用 | 每日 | < 500 MB | 超过则重启服务并排查泄漏 |
+| MQTT 连接 | 每小时 | 断线 0 次 | 断线自动重连，连续 3 次告警 |
+| 预测 MAE | 每周 | < 0.25 kWh | 超过则触发模型回滚 |
+
+## 4. 故障处理
+
+- 服务起不来：查看 `journalctl -u energy-gateway -n 100`，重点检查模型路径与 TensorRT 版本。
+- 预测值异常偏高：确认课表数据是否按时同步，节假日前一天容易缺事件特征。
+- 调度指令未下发：检查 MQTT 主题 `campus/energy/schedule` 的 ACL 配置。
+
+## 5. 回滚方案
+
+保留上一版本模型 `/opt/energy/models/student_int8.prev.trt`，回滚时替换文件并重启服务即可，回滚耗时约 40 秒。

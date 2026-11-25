@@ -1,0 +1,39 @@
+experiment: ablation-campus-stgnn
+seed: 42
+dataset:
+  path: ./data/campus_15min.parquet
+  split:
+    train: 2024-09-01..2025-03-31
+    valid: 2025-04-01..2025-04-30
+    test: 2025-05-01..2025-06-30
+features:
+  history: [lag_96, lag_672]
+  calendar: [hour, weekday, holiday, exam_week]
+  weather: [temp, humidity, apparent_temp, sunshine]
+  event: [schedule_people, big_event, maintenance]
+variants:
+  - name: full
+    use_graph: true
+    use_attention: true
+    use_schedule: true
+  - name: no_graph
+    use_graph: false
+    use_attention: true
+    use_schedule: true
+  - name: no_attention
+    use_graph: true
+    use_attention: false
+    use_schedule: true
+  - name: no_schedule
+    use_graph: true
+    use_attention: true
+    use_schedule: false
+training:
+  epochs: 80
+  batch_size: 64
+  lr: 0.001
+  early_stop: 10
+  repeats: 5
+output:
+  dir: ./runs/ablation
+  save_predictions: true
