@@ -71,6 +71,15 @@ export default async function handler(req: Request): Promise<Response> {
   if (!apiKey) {
     return json(500, { error: { code: 'NO_KEY' } })
   }
+  if (apiKey.includes('secrets') || apiKey.includes('Netlify') || apiKey.includes('build is failing')) {
+    console.error('[llm] MAAS_API_KEY looks like a leaked scan message, refusing to call upstream')
+    return json(500, { error: { code: 'BAD_KEY', detail: 'env var corrupted by secrets scan' } })
+  }
+  const baseUrl = BASE_URL
+  if (baseUrl.includes('secrets') || baseUrl.includes('Netlify') || baseUrl.includes('build is failing')) {
+    console.error('[llm] MAAS_BASE_URL looks like a leaked scan message, refusing to call upstream')
+    return json(500, { error: { code: 'BAD_BASE_URL', detail: 'env var corrupted by secrets scan' } })
+  }
 
   const prompt = buildPrompt(task, payload)
 
