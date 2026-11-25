@@ -25,13 +25,25 @@ export default function ScoreRadar({ dimensions }: { dimensions: DimensionScores
     <div className="h-[260px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart data={data} outerRadius="70%">
-          <PolarGrid stroke="rgba(255,255,255,0.15)" />
+          <defs>
+            <linearGradient id="scoreFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#F4D9A6" stopOpacity={0.5} />
+              <stop offset="100%" stopColor="#E6B563" stopOpacity={0.12} />
+            </linearGradient>
+          </defs>
+          <PolarGrid stroke="rgba(255,255,255,0.13)" />
           <PolarAngleAxis
             dataKey="dimension"
-            tick={{ fill: 'rgba(245,241,232,0.6)', fontSize: 12 }}
+            tick={{ fill: 'rgba(244,240,230,0.62)', fontSize: 12 }}
           />
           <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
-          <Radar dataKey="score" stroke="#E8B45A" fill="#E8B45A" fillOpacity={0.25} />
+          <Radar
+            dataKey="score"
+            stroke="#E6B563"
+            strokeWidth={1.5}
+            fill="url(#scoreFill)"
+            fillOpacity={1}
+          />
         </RadarChart>
       </ResponsiveContainer>
     </div>

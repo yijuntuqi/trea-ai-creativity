@@ -18,9 +18,12 @@ export default function ChatBubble({ message }: { message: Message }) {
     <div className={clsx('flex', isUser ? 'justify-end' : 'justify-start')}>
       <div
         className={clsx(
-          'max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed',
-          isUser ? 'bg-gold/15 text-paper' : 'bg-ink-soft text-paper/85',
+          'max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-[0_18px_40px_-32px_rgba(0,0,0,0.9)]',
+          isUser
+            ? 'rounded-br-md border border-gold/25 bg-gold/[0.12] text-paper'
+            : 'rounded-bl-md border border-white/[0.07] border-l-2 bg-ink-soft/90 text-paper/85',
         )}
+        style={!isUser ? { borderLeftColor: judge.color } : undefined}
       >
         {!isUser && (
           <p className="mb-1 text-xs" style={{ color: judge.color }}>

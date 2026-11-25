@@ -1,17 +1,20 @@
 @import "tailwindcss";
 
 @theme {
-  --color-ink: #0b1220;
-  --color-ink-soft: #111b2e;
-  --color-gold: #e8b45a;
-  --color-paper: #f5f1e8;
-  --font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif;
+  --color-ink: #070c16;
+  --color-ink-soft: #0d1626;
+  --color-ink-raised: #132034;
+  --color-gold: #e6b563;
+  --color-gold-soft: #f4d9a6;
+  --color-paper: #f4f0e6;
+  --font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", serif;
   --font-sans: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
 }
 
 @layer base {
   html {
     color-scheme: dark;
+    scroll-behavior: smooth;
   }
 
   body {
@@ -19,25 +22,95 @@
     color: var(--color-paper);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
   h1,
   h2,
   h3 {
     font-family: var(--font-serif);
-    letter-spacing: 0.02em;
+    letter-spacing: 0.005em;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: rgba(230, 181, 99, 0.28);
+    color: var(--color-paper);
+  }
+
+  :focus-visible {
+    outline: 2px solid rgba(230, 181, 99, 0.55);
+    outline-offset: 2px;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(230, 181, 99, 0.32) transparent;
   }
 }
 
-@layer utilities {
-  .bg-stage-grid {
+@layer components {
+  .app-canvas {
+    background-color: var(--color-ink);
     background-image:
-      radial-gradient(circle at 50% 0%, rgba(232, 180, 90, 0.16), transparent 55%),
-      linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-    background-size:
-      auto,
-      48px 48px,
-      48px 48px;
+      radial-gradient(900px 520px at 50% -12%, rgba(230, 181, 99, 0.12), transparent 68%),
+      radial-gradient(760px 460px at 100% 6%, rgba(58, 96, 168, 0.14), transparent 70%),
+      radial-gradient(620px 420px at 0% 42%, rgba(38, 104, 92, 0.1), transparent 70%);
+  }
+
+  .app-canvas::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.024) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.024) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, #000 20%, transparent 78%);
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.6875rem;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: rgba(230, 181, 99, 0.78);
+  }
+
+  .eyebrow::before {
+    content: "";
+    display: block;
+    width: 1.75rem;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(230, 181, 99, 0.8));
+  }
+
+  .stat-value {
+    font-family: var(--font-serif);
+    font-size: 1.75rem;
+    line-height: 1;
+    color: var(--color-paper);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
   }
 }

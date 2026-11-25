@@ -4,6 +4,7 @@ import type { JudgeId, Question, ReportModelOutput, Session } from '../types'
 import type { LLMTask } from '../lib/prompts'
 import { useSessionStore } from '../store/session'
 import { runTask } from '../lib/llm'
+import { mockTask } from '../lib/mock'
 import { parseLooseJSON } from '../lib/json'
 import { finalizeReport } from '../lib/report'
 import { canCallToday, consumeCall } from '../lib/quota'
@@ -107,14 +108,18 @@ export function useDefenseEngine(): {
   const queuedRef = useRef<Question | null>(null)
   const preparingRef = useRef<Promise<Question | null> | null>(null)
 
-  async function runCall(task: LLMTask, payload: Record<string, unknown>): Promise<string> {
+  async function runCall(
+    task: LLMTask,
+    payload: Record<string, unknown>,
+    opts: { fallbackToMock?: boolean } = {},
+  ): Promise<string> {
     const current = useSessionStore.getState().session
     if (!current) throw new Error('NO_SESSION')
     const forceMock = !canCallToday()
     const result = await runTask(
       { task, payload, sessionId: current.material.hash || current.id },
       () => {},
-      { forceMock },
+      { forceMock, fallbackToMock: opts.fallbackToMock },
     )
     if (!forceMock) consumeCall()
     if (result.source === 'mock') useSessionStore.getState().setMockNotice(true)
@@ -162,6 +167,8 @@ export function useDefenseEngine(): {
       text: question.text,
       createdAt: Date.now(),
     })
+    // 题目一出就预取下一题：用户作答期间完成生成，点「下一题」时几乎即时
+    if (question.followUpLevel === 0) prepareNext()
   }
 
   function prepareNext(): void {
@@ -210,6 +217,19 @@ export function useDefenseEngine(): {
     await doAsk(0)
   }
 
+  async function evaluateAnswer(payload: Record<string, unknown>): Promise<EvaluateOutput | null> {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const raw = await runCall('evaluate', payload, { fallbackToMock: false })
+        const parsed = parseLooseJSON<EvaluateOutput>(raw)
+        if (typeof parsed.comment === 'string' && parsed.comment.trim()) return parsed
+      } catch {
+        // 第一次失败（超时/截断/网络）后立即重试一次
+      }
+    }
+    return null
+  }
+
   async function answer(text: string): Promise<void> {
     const trimmed = text.trim()
     if (trimmed.length < 10) {
@@ -232,14 +252,19 @@ export function useDefenseEngine(): {
       store.answerQuestion(pending.id, trimmed, 0)
       store.addMessage({ id: newId('m'), role: 'user', text: trimmed, createdAt: Date.now() })
 
-      const raw = await runCall('evaluate', {
+      const payload = {
         material: current.material.text,
         config: current.config,
         portrait: current.portrait,
         question: pending.text,
         answer: trimmed,
-      })
-      const parsed = parseLooseJSON<EvaluateOutput>(raw)
+      }
+      // 优先真实点评：失败重试一次；仍失败才降级为演示数据，避免流程卡死
+      let parsed = await evaluateAnswer(payload)
+      if (!parsed) {
+        parsed = parseLooseJSON<EvaluateOutput>(mockTask('evaluate', payload))
+        useSessionStore.getState().setMockNotice(true)
+      }
       const score = clampScore(parsed.score)
       const comment = parsed.comment || '暂无点评'
 
@@ -337,7 +362,8 @@ export function useDefenseEngine(): {
       let output: ReportModelOutput | null = null
       for (let attempt = 0; attempt < 2 && !output; attempt += 1) {
         try {
-          const raw = await runCall('report', payload)
+          // 报告不做 mock 兜底：失败重试，最终用逐题真实点评组装报告
+          const raw = await runCall('report', payload, { fallbackToMock: false })
           output = normalizeOutput(parseLooseJSON<ReportModelOutput>(raw))
         } catch {
           // 第一次失败后重试一次

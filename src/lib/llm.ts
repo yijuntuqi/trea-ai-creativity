@@ -60,7 +60,7 @@ async function readStream(
 export async function runTask(
   req: LLMRequest,
   onDelta: (text: string) => void,
-  opts: { signal?: AbortSignal; forceMock?: boolean } = {},
+  opts: { signal?: AbortSignal; forceMock?: boolean; fallbackToMock?: boolean } = {},
 ): Promise<RunResult> {
   if (opts.forceMock || import.meta.env.VITE_DEMO_MODE === '1') {
     const text = mockTask(req.task, req.payload)
@@ -85,6 +85,8 @@ export async function runTask(
     return { text, source: 'live' }
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') throw error
+    // 点评/报告这类需要真实质量的任务可拒绝 mock 兜底，交由上层重试
+    if (opts.fallbackToMock === false) throw error
     const text = mockTask(req.task, req.payload)
     onDelta(text)
     return { text, source: 'mock' }

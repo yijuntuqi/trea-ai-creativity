@@ -74,16 +74,25 @@ export default function Report() {
       {exportError && <p className="text-xs text-red-300">{exportError}</p>}
 
       <div ref={reportRef} className="space-y-6">
-        <Card className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-xs tracking-[0.2em] text-paper/40">总分</p>
-            <p className="mt-2 font-serif text-6xl text-gold">{report.total}</p>
-          </div>
-          <div className="text-right">
-            <span className="rounded-full border border-gold/40 bg-gold/10 px-4 py-1 text-sm text-gold">
-              {report.level}
-            </span>
-            <p className="mt-3 max-w-md text-sm leading-relaxed text-paper/70">{report.summary}</p>
+        <Card className="relative overflow-hidden">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full bg-gold/10 blur-3xl"
+          />
+          <div className="relative flex flex-wrap items-end justify-between gap-6">
+            <div>
+              <p className="text-[11px] tracking-[0.28em] text-paper/40">总分</p>
+              <p className="mt-2 font-serif text-7xl leading-none tracking-tight text-gold">
+                {report.total}
+              </p>
+              <div className="mt-4 h-px w-24 bg-gradient-to-r from-gold/70 to-transparent" />
+            </div>
+            <div className="max-w-md text-right">
+              <span className="inline-block rounded-full border border-gold/40 bg-gold/10 px-4 py-1 text-sm text-gold shadow-[0_10px_30px_-18px_rgba(230,181,99,0.8)]">
+                {report.level}
+              </span>
+              <p className="mt-4 text-sm leading-relaxed text-paper/65">{report.summary}</p>
+            </div>
           </div>
         </Card>
 

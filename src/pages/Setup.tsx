@@ -38,8 +38,8 @@ function OptionGroup<T extends string>({
               onClick={() => onChange(option.value)}
               className={
                 pressed
-                  ? 'rounded-full border border-gold bg-gold/15 px-4 py-2 text-sm text-gold'
-                  : 'rounded-full border border-white/15 px-4 py-2 text-sm text-paper/70 transition hover:border-white/30 hover:text-paper'
+                  ? 'rounded-full border border-gold/70 bg-gold/[0.14] px-4 py-2 text-sm text-gold shadow-[0_0_0_1px_rgba(230,181,99,0.15),0_14px_30px_-22px_rgba(230,181,99,0.9)]'
+                  : 'rounded-full border border-white/12 bg-white/[0.02] px-4 py-2 text-sm text-paper/65 transition hover:border-white/25 hover:bg-white/[0.04] hover:text-paper'
               }
             >
               {option.label}

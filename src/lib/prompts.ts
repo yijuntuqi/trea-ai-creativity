@@ -17,9 +17,9 @@ const MODEL_REPORT = 'qwen3.8-plus'
 const MAX_TOKENS: Record<LLMTask, number> = {
   portrait: 2000,
   question: 700,
-  evaluate: 1200,
+  evaluate: 1600,
   hint: 300,
-  report: 5000,
+  report: 6000,
 }
 
 const TEMPERATURE: Record<LLMTask, number> = {
