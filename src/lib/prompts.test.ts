@@ -11,8 +11,8 @@ it('forbids fabrication in portrait system', () => {
   expect(prompt.system).toContain('不得编造')
 })
 
-it('limits hint to 200 tokens', () => {
-  expect(buildPrompt('hint', {}).maxTokens).toBe(200)
+it('limits hint to 300 tokens', () => {
+  expect(buildPrompt('hint', {}).maxTokens).toBe(300)
 })
 
 it('embeds context in question prompt', () => {

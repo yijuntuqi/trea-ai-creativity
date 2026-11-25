@@ -100,6 +100,8 @@ export default async function handler(req: Request): Promise<Response> {
         max_tokens: prompt.maxTokens,
         temperature: prompt.temperature,
         stream: true,
+        // 关闭思考模式：qwen3 思考模式单次可达 40s+，会触发 Netlify 30s 空闲超时
+        enable_thinking: false,
       }),
     })
   } catch (e) {
