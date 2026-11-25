@@ -44,7 +44,9 @@ it('stores a custom question target and judge selection', async () => {
   render(<Setup />)
 
   await user.click(screen.getByRole('button', { name: '10 题' }))
-  await user.click(screen.getByRole('button', { name: '方法论派 · 严谨型' }))
+  const methodJudge = screen.getByRole('button', { name: '方法论派 · 严谨型' })
+  await user.click(methodJudge)
+  expect(methodJudge).toHaveAttribute('aria-pressed', 'false')
   await user.click(screen.getByRole('button', { name: '创新性质疑派 · 犀利型' }))
 
   await user.click(screen.getByRole('button', { name: '下一步：上传材料' }))
