@@ -5,8 +5,8 @@
   "version": "0.1.0",
   "description": "答辩预演官 — AI 多评委答辩模拟与复盘报告",
   "scripts": {
-    "dev": "netlify dev",
-    "dev:vite": "vite",
+    "dev": "vite",
+    "dev:netlify": "netlify dev",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
     "test:watch": "vitest"

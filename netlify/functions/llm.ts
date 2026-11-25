@@ -84,12 +84,22 @@ export default async function handler(req: Request): Promise<Response> {
         stream: true,
       }),
     })
-  } catch {
-    return json(502, { error: { code: 'UPSTREAM_FAILED' } })
+  } catch (e) {
+    const detail = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
+    console.error('[llm] upstream fetch threw:', detail)
+    return json(502, { error: { code: 'UPSTREAM_FAILED', detail } })
   }
 
-  if (!upstream.ok || !upstream.body) {
-    return json(502, { error: { code: 'UPSTREAM_FAILED' } })
+  if (!upstream.ok) {
+    const text = await upstream.text().catch(() => '')
+    console.error('[llm] upstream non-ok:', upstream.status, text.slice(0, 500))
+    return json(502, {
+      error: { code: 'UPSTREAM_FAILED', status: upstream.status, body: text.slice(0, 500) },
+    })
+  }
+
+  if (!upstream.body) {
+    return json(502, { error: { code: 'UPSTREAM_FAILED', detail: 'empty body' } })
   }
 
   const upstreamBody = upstream.body
