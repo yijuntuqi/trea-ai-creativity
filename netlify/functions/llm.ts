@@ -2,10 +2,6 @@ import { buildPrompt, type LLMTask } from '../../src/lib/prompts'
 
 const TASKS: LLMTask[] = ['portrait', 'question', 'evaluate', 'hint', 'report']
 
-const BASE_URL =
-  process.env.MAAS_BASE_URL ??
-  'https://ws-4hkjkfltx0ydu89i.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
-
 const MAX_PAYLOAD_CHARS = 12000
 const DAILY_LIMIT = 1000
 
@@ -75,17 +71,20 @@ export default async function handler(req: Request): Promise<Response> {
     console.error('[llm] MAAS_API_KEY looks like a leaked scan message, refusing to call upstream')
     return json(500, { error: { code: 'BAD_KEY', detail: 'env var corrupted by secrets scan' } })
   }
-  const baseUrl = BASE_URL
-  if (baseUrl.includes('secrets') || baseUrl.includes('Netlify') || baseUrl.includes('build is failing')) {
-    console.error('[llm] MAAS_BASE_URL looks like a leaked scan message, refusing to call upstream')
-    return json(500, { error: { code: 'BAD_BASE_URL', detail: 'env var corrupted by secrets scan' } })
+
+  // 从 env 取 baseUrl；若被 Secrets Scan 污染则自动 fallback 到硬编码值
+  const FALLBACK_URL = 'https://ws-4hkjkfltx0ydu89i.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
+  let baseUrl = process.env.MAAS_BASE_URL?.trim() || FALLBACK_URL
+  if (/secrets|Netlify|build is failing/i.test(baseUrl)) {
+    console.warn('[llm] MAAS_BASE_URL corrupted by secrets scan, using fallback URL')
+    baseUrl = FALLBACK_URL
   }
 
   const prompt = buildPrompt(task, payload)
 
   let upstream: Response
   try {
-    upstream = await fetch(`${BASE_URL}/chat/completions`, {
+    upstream = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
