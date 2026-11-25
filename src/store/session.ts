@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { Message, Portrait, Question, Report, Session, SessionConfig } from '../types'
 import { hashText } from '../lib/hash'
-import { truncateMaterial } from '../lib/truncate'
+import { normalizeMaterial } from '../lib/material'
 import { getSession, saveSession } from '../lib/storage'
 
 export type SessionState = {
@@ -52,11 +52,11 @@ export const useSessionStore = create<SessionState>((set, get) => {
     async setMaterial(text, fileName) {
       const session = get().session
       if (!session) return
-      const truncated = truncateMaterial(text)
-      const hash = await hashText(truncated)
+      const normalized = normalizeMaterial(text)
+      const hash = await hashText(normalized)
       commit({
         ...session,
-        material: { fileName, text: truncated, chars: truncated.length, hash },
+        material: { fileName, text: normalized, chars: normalized.length, hash },
         status: 'ready',
       })
     },

@@ -27,7 +27,7 @@ it('dispatches pptx and pdf case-insensitively', async () => {
 })
 
 it('throws unsupported for unknown extensions', async () => {
-  await expect(parseFile(new File(['x'], 'a.docx'))).rejects.toMatchObject({ code: 'unsupported' })
+  await expect(parseFile(new File(['x'], 'a.doc'))).rejects.toMatchObject({ code: 'unsupported' })
 })
 
 it('wraps unexpected errors as corrupt', async () => {

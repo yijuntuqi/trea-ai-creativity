@@ -63,7 +63,7 @@ it('rejects empty txt upload without generating a portrait', async () => {
   const file = new File(['   '], 'empty.txt', { type: 'text/plain' })
   await user.upload(screen.getByLabelText('上传文件'), file)
 
-  expect(await screen.findByText('请粘贴或上传有效内容')).toBeInTheDocument()
+  expect(await screen.findByText('empty.txt：文件内容为空')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: '解析并生成画像' }))
   expect(generatePortraitMock).not.toHaveBeenCalled()
 })

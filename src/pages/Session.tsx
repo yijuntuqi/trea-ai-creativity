@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import type { DefenseType, Portrait, Strictness } from '../types'
+import type { Portrait } from '../types'
 import { JUDGES, judgeById } from '../lib/judges'
+import { STRICTNESS_SHORT, typeLabel } from '../lib/labels'
 import { isSpeechSupported, speak, stopSpeaking } from '../lib/tts'
 import { useDefenseEngine } from '../hooks/useDefenseEngine'
 import { useElapsedTimer } from '../hooks/useElapsedTimer'
@@ -13,19 +14,6 @@ import Timer from '../components/Timer'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Textarea } from '../components/ui/Textarea'
-
-const TYPE_LABEL: Record<DefenseType, string> = {
-  undergrad: '本科答辩',
-  master: '硕博答辩',
-  project: '项目答辩',
-  course: '课程汇报',
-}
-
-const STRICTNESS_LABEL: Record<Strictness, string> = {
-  gentle: '温和',
-  standard: '标准',
-  press: '压力',
-}
 
 function PortraitPoints({ portrait }: { portrait: Portrait }) {
   return (
@@ -157,7 +145,7 @@ export default function Session() {
         <div>
           <h1 className="font-serif text-2xl text-paper">答辩室</h1>
           <p className="mt-1 text-xs text-paper/50">
-            {TYPE_LABEL[session.config.type]} · {STRICTNESS_LABEL[session.config.strictness]}模式 ·
+            {typeLabel(session.config)} · {STRICTNESS_SHORT[session.config.strictness]}模式 ·
             共 {session.questions.length} 题
           </p>
         </div>

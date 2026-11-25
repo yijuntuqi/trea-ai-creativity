@@ -15,6 +15,7 @@ export default function Report() {
   const reportRef = useRef<HTMLDivElement>(null)
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
+  const [openAll, setOpenAll] = useState(false)
 
   if (!session || !report) {
     return (
@@ -30,10 +31,17 @@ export default function Report() {
     if (!reportRef.current) return
     setExporting(true)
     setExportError(null)
+    // 先展开逐题点评，等 DOM 完成布局后再整页截图
+    setOpenAll(true)
     try {
-      const dataUrl = await toPng(reportRef.current, {
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+      const node = reportRef.current
+      const dataUrl = await toPng(node, {
         backgroundColor: '#0B1220',
         pixelRatio: 2,
+        width: node.scrollWidth,
+        height: node.scrollHeight,
+        style: { maxHeight: 'none', overflow: 'visible' },
       })
       const link = document.createElement('a')
       link.href = dataUrl
@@ -54,8 +62,11 @@ export default function Report() {
           <h1 className="mt-2 font-serif text-3xl text-paper">本场答辩复盘</h1>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="ghost" onClick={() => setOpenAll((prev) => !prev)}>
+            {openAll ? '收起逐题点评' : '展开逐题点评'}
+          </Button>
           <Button variant="ghost" disabled={exporting} onClick={() => void exportImage()}>
-            保存报告图片
+            {exporting ? '正在生成…' : '保存报告图片'}
           </Button>
           <Button onClick={() => navigate('/setup')}>再来一场</Button>
         </div>
@@ -102,7 +113,11 @@ export default function Report() {
         <Card className="space-y-3">
           <h2 className="text-sm tracking-[0.2em] text-gold/70">逐题点评</h2>
           {report.questions.map((review, index) => (
-            <details key={review.questionId} className="rounded-xl border border-white/10 bg-ink/40 p-3">
+            <details
+              key={review.questionId}
+              open={openAll || undefined}
+              className="rounded-xl border border-white/10 bg-ink/40 p-3"
+            >
               <summary className="cursor-pointer text-sm text-paper/85">
                 第 {index + 1} 题 · {review.question}
                 <span className="ml-2 text-xs text-gold/80">{review.score} 分</span>

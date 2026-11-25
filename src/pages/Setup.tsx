@@ -1,48 +1,26 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { DefenseType, Discipline, SessionConfig, Strictness } from '../types'
+import type { SessionConfig } from '../types'
+import {
+  DEFENSE_TYPE_OPTIONS,
+  DISCIPLINE_OPTIONS,
+  STRICTNESS_OPTIONS,
+  type SelectOption,
+} from '../lib/labels'
 import { useSessionStore } from '../store/session'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 
-type Option<T extends string | number> = { value: T; label: string }
+const MINUTE_PRESETS = [8, 15, 25]
 
-const TYPES: Option<DefenseType>[] = [
-  { value: 'undergrad', label: '本科毕设' },
-  { value: 'master', label: '硕士学位' },
-  { value: 'project', label: '项目结题' },
-  { value: 'course', label: '课程汇报' },
-]
-
-const DISCIPLINES: Option<Discipline>[] = [
-  { value: 'stem', label: '理工' },
-  { value: 'humanities', label: '人文社科' },
-  { value: 'business', label: '经管' },
-  { value: 'medicine', label: '医学' },
-  { value: 'art', label: '艺术设计' },
-  { value: 'other', label: '其他' },
-]
-
-const STRICTNESS: Option<Strictness>[] = [
-  { value: 'gentle', label: '温和（鼓励为主）' },
-  { value: 'standard', label: '标准' },
-  { value: 'press', label: '压力（连续追问）' },
-]
-
-const MINUTES: Option<8 | 15 | 25>[] = [
-  { value: 8, label: '8 分钟' },
-  { value: 15, label: '15 分钟' },
-  { value: 25, label: '25 分钟' },
-]
-
-function OptionGroup<T extends string | number>({
+function OptionGroup<T extends string>({
   title,
   options,
   value,
   onChange,
 }: {
   title: string
-  options: Option<T>[]
+  options: SelectOption<T>[]
   value: T
   onChange: (next: T) => void
 }) {
@@ -54,7 +32,7 @@ function OptionGroup<T extends string | number>({
           const pressed = option.value === value
           return (
             <button
-              key={String(option.value)}
+              key={option.value}
               type="button"
               aria-pressed={pressed}
               onClick={() => onChange(option.value)}
@@ -82,12 +60,26 @@ export default function Setup() {
     strictness: 'standard',
     minutes: 15,
   })
+  const [error, setError] = useState<string | null>(null)
 
   function update<K extends keyof SessionConfig>(key: K, value: SessionConfig[K]) {
     setConfig((prev) => ({ ...prev, [key]: value }))
   }
 
   function submit() {
+    if (config.type === 'custom' && !config.customType?.trim()) {
+      setError('请填写自定义答辩类型')
+      return
+    }
+    if (config.discipline === 'other' && !config.customDiscipline?.trim()) {
+      setError('请填写自定义学科')
+      return
+    }
+    if (!Number.isFinite(config.minutes) || config.minutes < 1 || config.minutes > 240) {
+      setError('限时需在 1-240 分钟之间')
+      return
+    }
+    setError(null)
     start(config)
     navigate('/material')
   }
@@ -97,36 +89,93 @@ export default function Setup() {
       <header>
         <h1 className="font-serif text-3xl text-paper">建场</h1>
         <p className="mt-2 text-sm text-paper/60">
-          先确定答辩场景，评委会据此调整提问方式与追问强度。
+          确定答辩场景后，评委会按类型、学科、严格度与限时安排提问节奏；「自定义」内容会直接作为 AI 的出题依据。
         </p>
       </header>
 
       <Card className="space-y-7">
-        <OptionGroup
-          title="答辩类型"
-          options={TYPES}
-          value={config.type}
-          onChange={(value) => update('type', value)}
-        />
-        <OptionGroup
-          title="学科"
-          options={DISCIPLINES}
-          value={config.discipline}
-          onChange={(value) => update('discipline', value)}
-        />
+        <div className="space-y-3">
+          <OptionGroup
+            title="答辩类型"
+            options={DEFENSE_TYPE_OPTIONS}
+            value={config.type}
+            onChange={(value) => update('type', value)}
+          />
+          {config.type === 'custom' && (
+            <input
+              aria-label="自定义答辩类型"
+              value={config.customType ?? ''}
+              onChange={(event) => update('customType', event.target.value)}
+              placeholder="例如：开题答辩、求职作品讲演、产品方案评审"
+              className="w-full rounded-xl border border-white/15 bg-ink/60 px-4 py-2 text-sm text-paper outline-none transition focus:border-gold/60"
+            />
+          )}
+        </div>
+
+        <div className="space-y-3">
+          <OptionGroup
+            title="学科"
+            options={DISCIPLINE_OPTIONS}
+            value={config.discipline}
+            onChange={(value) => update('discipline', value)}
+          />
+          {config.discipline === 'other' && (
+            <input
+              aria-label="自定义学科"
+              value={config.customDiscipline ?? ''}
+              onChange={(event) => update('customDiscipline', event.target.value)}
+              placeholder="例如：建筑学、新闻传播、环境工程"
+              className="w-full rounded-xl border border-white/15 bg-ink/60 px-4 py-2 text-sm text-paper outline-none transition focus:border-gold/60"
+            />
+          )}
+        </div>
+
         <OptionGroup
           title="严格度"
-          options={STRICTNESS}
+          options={STRICTNESS_OPTIONS}
           value={config.strictness}
           onChange={(value) => update('strictness', value)}
         />
-        <OptionGroup
-          title="限时"
-          options={MINUTES}
-          value={config.minutes}
-          onChange={(value) => update('minutes', value)}
-        />
+
+        <div>
+          <h2 className="mb-3 text-sm text-paper/60">限时</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            {MINUTE_PRESETS.map((minutes) => {
+              const pressed = config.minutes === minutes
+              return (
+                <button
+                  key={minutes}
+                  type="button"
+                  aria-pressed={pressed}
+                  onClick={() => update('minutes', minutes)}
+                  className={
+                    pressed
+                      ? 'rounded-full border border-gold bg-gold/15 px-4 py-2 text-sm text-gold'
+                      : 'rounded-full border border-white/15 px-4 py-2 text-sm text-paper/70 transition hover:border-white/30 hover:text-paper'
+                  }
+                >
+                  {minutes} 分钟
+                </button>
+              )
+            })}
+            <label className="flex items-center gap-2 text-sm text-paper/60">
+              自定义
+              <input
+                type="number"
+                aria-label="自定义限时分钟数"
+                min={1}
+                max={240}
+                value={config.minutes}
+                onChange={(event) => update('minutes', Number(event.target.value))}
+                className="w-20 rounded-xl border border-white/15 bg-ink/60 px-3 py-2 text-sm text-paper outline-none transition focus:border-gold/60"
+              />
+              分钟
+            </label>
+          </div>
+        </div>
       </Card>
+
+      {error && <p className="text-sm text-red-300">{error}</p>}
 
       <div className="flex justify-end">
         <Button size="lg" onClick={submit}>

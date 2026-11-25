@@ -1,6 +1,6 @@
 export type Strictness = 'gentle' | 'standard' | 'press'
 
-export type DefenseType = 'undergrad' | 'master' | 'project' | 'course'
+export type DefenseType = 'undergrad' | 'master' | 'project' | 'course' | 'custom'
 
 export type Discipline = 'stem' | 'humanities' | 'business' | 'medicine' | 'art' | 'other'
 
@@ -8,7 +8,9 @@ export type SessionConfig = {
   type: DefenseType
   discipline: Discipline
   strictness: Strictness
-  minutes: 8 | 15 | 25
+  minutes: number
+  customType?: string
+  customDiscipline?: string
 }
 
 export type Material = {

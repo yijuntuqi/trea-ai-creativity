@@ -16,7 +16,7 @@ it('rejects unknown task', async () => {
 })
 
 it('rejects oversized payload', async () => {
-  const payload = { text: 'x'.repeat(20000) }
+  const payload = { text: 'x'.repeat(300000) }
   const res = await handler(post({ task: 'portrait', payload, sessionId: 's' }))
   expect(res.status).toBe(413)
 })

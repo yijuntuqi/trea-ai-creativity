@@ -2,7 +2,8 @@ import { buildPrompt, type LLMTask } from '../../src/lib/prompts'
 
 const TASKS: LLMTask[] = ['portrait', 'question', 'evaluate', 'hint', 'report']
 
-const MAX_PAYLOAD_CHARS = 12000
+// 允许整篇论文/实验数据原样进入模型，不做截断
+const MAX_PAYLOAD_CHARS = 300000
 const DAILY_LIMIT = 1000
 
 let dayKey = ''

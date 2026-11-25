@@ -49,7 +49,7 @@ it('finalizes report with local totals and filled reviews', () => {
   expect(typeof report.createdAt).toBe('number')
 })
 
-it('prefers model reviews when present', () => {
+it('prefers stored per-question evaluations over model rewrites', () => {
   const session = makeSession()
   const output: ReportModelOutput = {
     dimensions: { accuracy: 90, logic: 90, depth: 90, clarity: 90 },
@@ -71,7 +71,8 @@ it('prefers model reviews when present', () => {
   const report = finalizeReport(output, session)
 
   expect(report.questions[0].score).toBe(95)
-  expect(report.questions[0].comment).toBe('模型点评')
+  expect(report.questions[0].comment).toBe('点评 1')
+  expect(report.questions[0].modelAnswer).toBe('参考话术 1')
   expect(report.questions[1].score).toBe(71)
   expect(report.questions[1].comment).toBe('点评 2')
   expect(report.total).toBe(90)

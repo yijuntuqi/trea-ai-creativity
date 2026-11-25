@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { beforeEach, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Session } from '../types'
 import Report from './Report'
@@ -89,5 +89,8 @@ it('renders scores, risks, reviews and exports an image', async () => {
   expect(screen.getAllByText(/点评：点评 \d/)).toHaveLength(6)
 
   await user.click(screen.getByRole('button', { name: '保存报告图片' }))
-  expect(toPngMock).toHaveBeenCalledTimes(1)
+  await waitFor(() => expect(toPngMock).toHaveBeenCalledTimes(1))
+  const details = Array.from(document.querySelectorAll('details'))
+  expect(details.length).toBeGreaterThan(0)
+  expect(details.every((node) => node.open)).toBe(true)
 })

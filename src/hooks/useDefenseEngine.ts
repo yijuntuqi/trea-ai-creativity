@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { JudgeId, Question, ReportModelOutput, Session } from '../types'
 import type { LLMTask } from '../lib/prompts'
@@ -103,6 +103,9 @@ export function useDefenseEngine(): {
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // 预取下一题：点评结束后后台生成，用户点「下一题」时直接秒出
+  const queuedRef = useRef<Question | null>(null)
+  const preparingRef = useRef<Promise<Question | null> | null>(null)
 
   async function runCall(task: LLMTask, payload: Record<string, unknown>): Promise<string> {
     const current = useSessionStore.getState().session
@@ -118,48 +121,83 @@ export function useDefenseEngine(): {
     return result.text
   }
 
-  async function doAsk(level: 0 | 1 | 2): Promise<void> {
+  async function generateQuestion(level: 0 | 1 | 2): Promise<Question | null> {
     const current = useSessionStore.getState().session
-    if (!current) return
+    if (!current) return null
     const previous = current.questions[current.questions.length - 1]
     const preferred = level > 0 && previous ? previous.judgeId : pickJudge(current.questions)
+    const raw = await runCall('question', {
+      material: current.material.text,
+      config: current.config,
+      portrait: current.portrait,
+      strictness: current.config.strictness,
+      followUpLevel: level,
+      judge: preferred,
+      recentMessages: current.messages.slice(-6).map((message) => ({
+        role: message.role,
+        text: message.text,
+      })),
+    })
+    const parsed = parseLooseJSON<QuestionOutput>(raw)
+    if (!parsed.text) throw new Error('EMPTY_QUESTION')
+
+    const suggested = Number(parsed.suggestedSeconds)
+    return {
+      id: newId('q'),
+      judgeId: level > 0 ? preferred : guardJudge(parsed.judgeId, preferred, current.questions),
+      text: parsed.text,
+      intent: parsed.intent ?? '',
+      suggestedSeconds: Number.isFinite(suggested) && suggested > 0 ? suggested : level > 0 ? 60 : 90,
+      followUpLevel: level,
+    }
+  }
+
+  function commitQuestion(question: Question): void {
+    const store = useSessionStore.getState()
+    store.addQuestion(question)
+    store.addMessage({
+      id: newId('m'),
+      role: 'judge',
+      judgeId: question.judgeId,
+      text: question.text,
+      createdAt: Date.now(),
+    })
+  }
+
+  function prepareNext(): void {
+    if (queuedRef.current || preparingRef.current) return
+    const promise = generateQuestion(0)
+      .then((question) => {
+        if (question) queuedRef.current = question
+        return question
+      })
+      .catch(() => null)
+    preparingRef.current = promise
+    void promise.finally(() => {
+      if (preparingRef.current === promise) preparingRef.current = null
+    })
+  }
+
+  async function doAsk(level: 0 | 1 | 2): Promise<void> {
     setBusy(true)
     setError(null)
     try {
-      const raw = await runCall('question', {
-        material: current.material.text,
-        config: current.config,
-        portrait: current.portrait,
-        strictness: current.config.strictness,
-        followUpLevel: level,
-        judge: preferred,
-        recentMessages: current.messages.slice(-6).map((message) => ({
-          role: message.role,
-          text: message.text,
-        })),
-      })
-      const parsed = parseLooseJSON<QuestionOutput>(raw)
-      if (!parsed.text) throw new Error('EMPTY_QUESTION')
-
-      const suggested = Number(parsed.suggestedSeconds)
-      const question: Question = {
-        id: newId('q'),
-        judgeId: level > 0 ? preferred : guardJudge(parsed.judgeId, preferred, current.questions),
-        text: parsed.text,
-        intent: parsed.intent ?? '',
-        suggestedSeconds: Number.isFinite(suggested) && suggested > 0 ? suggested : level > 0 ? 60 : 90,
-        followUpLevel: level,
+      let question: Question | null = null
+      const cached = queuedRef.current
+      if (cached && level === 0 && cached.followUpLevel === 0) {
+        queuedRef.current = null
+        question = cached
+      } else if (level > 0) {
+        queuedRef.current = null
       }
 
-      const store = useSessionStore.getState()
-      store.addQuestion(question)
-      store.addMessage({
-        id: newId('m'),
-        role: 'judge',
-        judgeId: question.judgeId,
-        text: question.text,
-        createdAt: Date.now(),
-      })
+      if (!question && level === 0 && preparingRef.current) {
+        question = await preparingRef.current
+      }
+      if (!question) question = await generateQuestion(level)
+      if (!question) throw new Error('EMPTY_QUESTION')
+
+      commitQuestion(question)
     } catch {
       setError('提问失败，请重试')
     } finally {
@@ -196,6 +234,8 @@ export function useDefenseEngine(): {
 
       const raw = await runCall('evaluate', {
         material: current.material.text,
+        config: current.config,
+        portrait: current.portrait,
         question: pending.text,
         answer: trimmed,
       })
@@ -214,6 +254,9 @@ export function useDefenseEngine(): {
 
       if (parsed.followUp && pending.followUpLevel < 2) {
         await doAsk((pending.followUpLevel + 1) as 1 | 2)
+      } else {
+        // 点评已出，后台预取下一题，用户点「下一题」时无需再等
+        prepareNext()
       }
     } catch {
       setError('点评生成失败，请重试')

@@ -45,3 +45,37 @@ it('marks the chosen option as pressed', async () => {
   await user.click(press)
   expect(press).toHaveAttribute('aria-pressed', 'true')
 })
+
+it('stores custom defense type, discipline and minutes', async () => {
+  const user = userEvent.setup()
+  render(<Setup />)
+
+  await user.click(screen.getByRole('button', { name: '自定义' }))
+  await user.type(screen.getByLabelText('自定义答辩类型'), '开题答辩')
+  await user.click(screen.getByRole('button', { name: '其他' }))
+  await user.type(screen.getByLabelText('自定义学科'), '建筑学')
+  const minutes = screen.getByLabelText('自定义限时分钟数')
+  await user.clear(minutes)
+  await user.type(minutes, '40')
+
+  await user.click(screen.getByRole('button', { name: '下一步：上传材料' }))
+
+  expect(useSessionStore.getState().session?.config).toMatchObject({
+    type: 'custom',
+    customType: '开题答辩',
+    discipline: 'other',
+    customDiscipline: '建筑学',
+    minutes: 40,
+  })
+})
+
+it('blocks submit when custom fields are empty', async () => {
+  const user = userEvent.setup()
+  render(<Setup />)
+
+  await user.click(screen.getByRole('button', { name: '自定义' }))
+  await user.click(screen.getByRole('button', { name: '下一步：上传材料' }))
+
+  expect(screen.getByText('请填写自定义答辩类型')).toBeInTheDocument()
+  expect(navigateMock).not.toHaveBeenCalled()
+})

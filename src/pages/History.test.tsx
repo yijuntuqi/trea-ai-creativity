@@ -62,8 +62,9 @@ it('lists sessions and opens a report', async () => {
   expect(navigateMock).toHaveBeenCalledWith('/report/s_a')
 })
 
-it('deletes a session from the list and storage', async () => {
+it('deletes a session from the list and storage after confirmation', async () => {
   const user = userEvent.setup()
+  const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(true)
   render(<History />)
 
   const before = loadSessions().length
@@ -71,6 +72,20 @@ it('deletes a session from the list and storage', async () => {
 
   await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(before - 1))
   expect(loadSessions()).toHaveLength(before - 1)
+  confirmMock.mockRestore()
+})
+
+it('keeps the session when deletion is cancelled', async () => {
+  const user = userEvent.setup()
+  const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(false)
+  render(<History />)
+
+  const before = loadSessions().length
+  await user.click(screen.getAllByRole('button', { name: '删除' })[0])
+
+  expect(screen.getAllByRole('listitem')).toHaveLength(before)
+  expect(loadSessions()).toHaveLength(before)
+  confirmMock.mockRestore()
 })
 
 it('shows an empty state without sessions', () => {

@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { Portrait, Strictness } from '../types'
+import type { Portrait } from '../types'
 import { JUDGES } from '../lib/judges'
-import { ParseError, parseFile } from '../lib/parse'
+import { STRICTNESS_LABEL } from '../lib/labels'
+import { ACCEPT_EXTENSIONS, ParseError, parseFile } from '../lib/parse'
 import { generatePortrait } from '../lib/portrait'
 import { useSessionStore } from '../store/session'
 import JudgeCard from '../components/JudgeCard'
@@ -10,18 +11,22 @@ import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Textarea } from '../components/ui/Textarea'
 
-const STRICTNESS_LABEL: Record<Strictness, string> = {
-  gentle: '温和（鼓励为主）',
-  standard: '标准',
-  press: '压力（连续追问）',
+type MaterialFile = {
+  id: string
+  name: string
+  text: string
 }
 
 function errorText(error: unknown): string {
   if (error instanceof ParseError) {
-    if (error.code === 'no-text') return '未识别到文本，请粘贴大纲'
-    if (error.code === 'unsupported') return '暂不支持该格式，请粘贴文本'
+    if (error.code === 'unsupported') return '暂不支持该格式'
+    return error.message
   }
-  return '文件解析失败，请粘贴文本'
+  return '文件解析失败'
+}
+
+function newFileId(): string {
+  return `f_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`
 }
 
 function Point({ label, value }: { label: string; value: string }) {
@@ -56,13 +61,13 @@ export default function Material() {
   const setPortrait = useSessionStore((state) => state.setPortrait)
   const setMockNotice = useSessionStore((state) => state.setMockNotice)
 
+  const [files, setFiles] = useState<MaterialFile[]>([])
   const [text, setText] = useState('')
-  const [fileName, setFileName] = useState<string | undefined>(undefined)
   const [portrait, setLocalPortrait] = useState<Portrait | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [warning, setWarning] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [stage, setStage] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
 
   if (!session) {
     return (
@@ -74,32 +79,56 @@ export default function Material() {
     )
   }
 
-  async function onFile(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    if (!file) return
+  const fileChars = files.reduce((sum, file) => sum + file.text.length, 0)
+  const totalChars = fileChars + text.trim().length
+
+  function composeMaterial(): string {
+    const parts = files.map((file) => `【文件：${file.name}】\n${file.text}`)
+    const manual = text.trim()
+    if (manual) parts.push(`【补充说明】\n${manual}`)
+    return parts.join('\n\n')
+  }
+
+  async function onFiles(event: React.ChangeEvent<HTMLInputElement>) {
+    const selected = Array.from(event.target.files ?? [])
+    event.target.value = ''
+    if (selected.length === 0) return
+
     setError(null)
-    setWarning(null)
-    try {
-      const parsed = await parseFile(file)
-      setFileName(file.name)
-      setText(parsed.text)
-      if (parsed.warning) setWarning(parsed.warning)
-      if (!parsed.text.trim()) setError('请粘贴或上传有效内容')
-    } catch (uploadError) {
-      setError(errorText(uploadError))
+    const failures: string[] = []
+    const added: MaterialFile[] = []
+
+    for (const file of selected) {
+      try {
+        const parsed = await parseFile(file)
+        added.push({ id: newFileId(), name: file.name, text: parsed.text })
+      } catch (uploadError) {
+        failures.push(`${file.name}：${errorText(uploadError)}`)
+      }
     }
+
+    if (added.length > 0) setFiles((prev) => [...prev, ...added])
+    if (failures.length > 0) setError(failures.join('；'))
+  }
+
+  function removeFile(id: string) {
+    setFiles((prev) => prev.filter((file) => file.id !== id))
   }
 
   async function analyze() {
-    if (!text.trim()) {
-      setError('请粘贴或上传有效内容')
+    const materialText = composeMaterial()
+    if (!materialText.trim()) {
+      setError('请上传文件或粘贴材料内容')
       return
     }
     setError(null)
     setLoading(true)
     setStage('正在读取材料要点…')
     try {
-      await setMaterial(text, fileName)
+      await setMaterial(
+        materialText,
+        files.length > 0 ? files.map((file) => file.name).join(' + ') : undefined,
+      )
       const current = useSessionStore.getState().session
       if (!current) return
       setStage('评委正在提炼研究画像…')
@@ -127,7 +156,7 @@ export default function Material() {
       <header>
         <h1 className="font-serif text-3xl text-paper">上传材料</h1>
         <p className="mt-2 text-sm text-paper/60">
-          支持 PDF、PPTX 与纯文本粘贴；文件只在浏览器内解析，不会上传。
+          支持 PDF、PPTX、Word、Excel、Markdown、JSON、CSV、TXT，可一次上传多个文件；文件只在浏览器内解析，不会上传到云端。
         </p>
       </header>
 
@@ -137,33 +166,55 @@ export default function Material() {
             <label className="cursor-pointer rounded-full border border-white/15 px-4 py-2 text-sm text-paper/75 transition hover:border-gold/60 hover:text-gold">
               选择文件
               <input
+                ref={inputRef}
                 type="file"
                 aria-label="上传文件"
-                accept=".pdf,.pptx,.txt"
-                onChange={onFile}
+                multiple
+                accept={ACCEPT_EXTENSIONS.join(',')}
+                onChange={onFiles}
                 className="sr-only"
               />
             </label>
-            <span className="text-xs text-paper/40">
-              {fileName ?? '也可以直接把论文摘要或大纲粘贴到下方'}
-            </span>
+            <span className="text-xs text-paper/40">可多选；论文、报告、实验数据可一起上传</span>
           </div>
+
+          {files.length > 0 && (
+            <ul className="space-y-2">
+              {files.map((file) => (
+                <li
+                  key={file.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-ink/40 px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm text-paper/85">{file.name}</p>
+                    <p className="text-xs text-paper/40">{file.text.length} 字</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeFile(file.id)}
+                    className="shrink-0 rounded-full border border-white/15 px-3 py-1 text-xs text-paper/60 transition hover:border-red-300/60 hover:text-red-300"
+                  >
+                    删除
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
 
           <Textarea
             aria-label="材料文本"
-            rows={10}
+            rows={8}
             value={text}
             onChange={(event) => setText(event.target.value)}
-            placeholder="粘贴研究问题、方法、结论或 PPT 大纲…"
+            placeholder="也可以把研究问题、方法、结论或 PPT 大纲直接粘贴到这里…"
           />
 
           <div className="flex items-center justify-between text-xs text-paper/40">
-            <span>{text.trim().length} 字</span>
-            <span>解析后自动截断至约 4000 字</span>
+            <span>共 {totalChars} 字（全文参与分析，不做截断）</span>
+            <span>{files.length > 0 ? `${files.length} 个文件` : '未上传文件'}</span>
           </div>
 
           {error && <p className="text-sm text-red-300">{error}</p>}
-          {warning && <p className="text-sm text-gold/80">{warning}</p>}
 
           <div className="flex justify-end">
             <Button onClick={analyze} disabled={loading}>

@@ -1,31 +1,36 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { DefenseType, Session } from '../types'
+import type { Session } from '../types'
 import { clearSessions, deleteSession, loadSessions } from '../lib/storage'
+import { typeLabel } from '../lib/labels'
+import { useSessionStore } from '../store/session'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
-
-const TYPE_LABEL: Record<DefenseType, string> = {
-  undergrad: '本科答辩',
-  master: '硕博答辩',
-  project: '项目答辩',
-  course: '课程汇报',
-}
 
 function statusLabel(session: Session): string {
   if (session.status === 'finished' && session.report) {
     return `${session.report.total} 分 · ${session.report.level}`
   }
   if (session.status === 'ongoing') return '进行中'
+  if (session.status === 'ready') return '待开始答辩'
   return '待开始'
+}
+
+function sessionTitle(session: Session): string {
+  return session.material.fileName ?? '粘贴材料'
 }
 
 export default function History() {
   const navigate = useNavigate()
+  const restore = useSessionStore((state) => state.restore)
   const [sessions, setSessions] = useState<Session[]>(() => loadSessions())
 
-  function remove(id: string) {
-    deleteSession(id)
+  function remove(session: Session) {
+    const confirmed = window.confirm(
+      `确定删除「${sessionTitle(session)}」这场记录？删除后不可恢复。`,
+    )
+    if (!confirmed) return
+    deleteSession(session.id)
     setSessions(loadSessions())
   }
 
@@ -33,6 +38,11 @@ export default function History() {
     if (!window.confirm('确定清空全部预演记录？该操作不可撤销。')) return
     clearSessions()
     setSessions([])
+  }
+
+  function resume(session: Session) {
+    restore(session.id)
+    navigate(session.status === 'ongoing' ? `/session/${session.id}` : '/material')
   }
 
   return (
@@ -61,7 +71,7 @@ export default function History() {
               <Card className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm text-paper/85">
-                    {TYPE_LABEL[session.config.type]} · {session.material.fileName ?? '粘贴材料'}
+                    {typeLabel(session.config)} · {sessionTitle(session)}
                   </p>
                   <p className="mt-1 text-xs text-paper/45">
                     {new Date(session.createdAt).toLocaleString('zh-CN')}
@@ -74,9 +84,12 @@ export default function History() {
                     <Button onClick={() => navigate(`/report/${session.id}`)}>查看报告</Button>
                   )}
                   {session.status === 'ongoing' && (
-                    <Button onClick={() => navigate(`/session/${session.id}`)}>继续</Button>
+                    <Button onClick={() => resume(session)}>继续答辩</Button>
                   )}
-                  <Button variant="ghost" onClick={() => remove(session.id)}>
+                  {session.status === 'ready' && (
+                    <Button onClick={() => resume(session)}>继续准备</Button>
+                  )}
+                  <Button variant="ghost" onClick={() => remove(session)}>
                     删除
                   </Button>
                 </div>

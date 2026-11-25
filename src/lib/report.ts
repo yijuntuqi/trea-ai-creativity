@@ -12,13 +12,15 @@ export function finalizeReport(output: ReportModelOutput, session: Session): Rep
 
   const questions: QuestionReview[] = session.questions.map((q) => {
     const review = byId.get(q.id)
+    const storedComment = q.comment && q.comment !== '暂无点评' ? q.comment : ''
+    const storedAnswer = q.modelAnswer && q.modelAnswer !== '暂无参考话术' ? q.modelAnswer : ''
     return {
       questionId: q.id,
-      question: review?.question || q.text,
-      answer: review?.answer || q.answer || '',
+      question: q.text || review?.question || '',
+      answer: q.answer || review?.answer || '',
       score: review?.score ?? q.score ?? 0,
-      comment: review?.comment || q.comment || '暂无点评',
-      modelAnswer: review?.modelAnswer || q.modelAnswer || '暂无参考话术',
+      comment: storedComment || review?.comment || '暂无点评',
+      modelAnswer: storedAnswer || review?.modelAnswer || '暂无参考话术',
     }
   })
 
