@@ -79,6 +79,7 @@ export default async function handler(req: Request): Promise<Response> {
     console.warn('[llm] MAAS_BASE_URL corrupted by secrets scan, using fallback URL')
     baseUrl = FALLBACK_URL
   }
+  console.log(`[llm] baseUrl=${baseUrl.slice(0, 40)}... apiKey_len=${apiKey.length}`)
 
   const prompt = buildPrompt(task, payload)
 
@@ -102,7 +103,7 @@ export default async function handler(req: Request): Promise<Response> {
       }),
     })
   } catch (e) {
-    const detail = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
+    const detail = e instanceof Error ? `${e.name}: ${e.message}${e.cause ? ' cause=' + e.cause : ''}` : String(e)
     console.error('[llm] upstream fetch threw:', detail)
     return json(502, { error: { code: 'UPSTREAM_FAILED', detail } })
   }
