@@ -33,8 +33,26 @@ it('starts a session with defaults and navigates', async () => {
     discipline: 'stem',
     strictness: 'standard',
     minutes: 15,
+    questionTarget: 6,
+    judges: ['method', 'innovation', 'application'],
   })
   expect(navigateMock).toHaveBeenCalledWith('/material')
+})
+
+it('stores a custom question target and judge selection', async () => {
+  const user = userEvent.setup()
+  render(<Setup />)
+
+  await user.click(screen.getByRole('button', { name: '10 题' }))
+  await user.click(screen.getByRole('button', { name: '方法论派 · 严谨型' }))
+  await user.click(screen.getByRole('button', { name: '创新性质疑派 · 犀利型' }))
+
+  await user.click(screen.getByRole('button', { name: '下一步：上传材料' }))
+
+  expect(useSessionStore.getState().session?.config).toMatchObject({
+    questionTarget: 10,
+    judges: ['application'],
+  })
 })
 
 it('marks the chosen option as pressed', async () => {

@@ -88,6 +88,21 @@ it('keeps the session when deletion is cancelled', async () => {
   confirmMock.mockRestore()
 })
 
+it('starts a retry copy from a finished session', async () => {
+  const user = userEvent.setup()
+  render(<History />)
+
+  await user.click(screen.getByRole('button', { name: '再练一场' }))
+
+  expect(navigateMock).toHaveBeenCalledWith('/material')
+  const sessions = loadSessions()
+  expect(sessions.length).toBe(3)
+  const retry = sessions.find((item) => item.status === 'ready')
+  expect(retry?.material.hash).toBe('h_a')
+  expect(retry?.questions).toEqual([])
+  expect(retry?.report).toBeUndefined()
+})
+
 it('shows an empty state without sessions', () => {
   localStorage.clear()
   render(<History />)

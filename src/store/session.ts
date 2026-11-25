@@ -8,6 +8,8 @@ export type SessionState = {
   session: Session | null
   mockNotice: boolean
   start(config: SessionConfig): void
+  startRetry(source: Session): void
+  updateConfig(patch: Partial<SessionConfig>): void
   setMaterial(text: string, fileName?: string): Promise<void>
   setPortrait(portrait: Portrait): void
   begin(): void
@@ -47,6 +49,25 @@ export const useSessionStore = create<SessionState>((set, get) => {
           status: 'setup',
         },
       })
+    },
+
+    startRetry(source) {
+      commit({
+        id: newId(),
+        createdAt: Date.now(),
+        config: { ...source.config },
+        material: { ...source.material },
+        portrait: source.portrait,
+        messages: [],
+        questions: [],
+        status: 'ready',
+      })
+    },
+
+    updateConfig(patch) {
+      const session = get().session
+      if (!session) return
+      commit({ ...session, config: { ...session.config, ...patch } })
     },
 
     async setMaterial(text, fileName) {

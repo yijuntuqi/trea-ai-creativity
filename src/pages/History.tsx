@@ -23,6 +23,7 @@ function sessionTitle(session: Session): string {
 export default function History() {
   const navigate = useNavigate()
   const restore = useSessionStore((state) => state.restore)
+  const startRetry = useSessionStore((state) => state.startRetry)
   const [sessions, setSessions] = useState<Session[]>(() => loadSessions())
 
   function remove(session: Session) {
@@ -43,6 +44,11 @@ export default function History() {
   function resume(session: Session) {
     restore(session.id)
     navigate(session.status === 'ongoing' ? `/session/${session.id}` : '/material')
+  }
+
+  function retry(session: Session) {
+    startRetry(session)
+    navigate('/material')
   }
 
   return (
@@ -82,6 +88,11 @@ export default function History() {
                 <div className="flex items-center gap-2">
                   {session.report && (
                     <Button onClick={() => navigate(`/report/${session.id}`)}>查看报告</Button>
+                  )}
+                  {session.status === 'finished' && (
+                    <Button variant="ghost" onClick={() => retry(session)}>
+                      再练一场
+                    </Button>
                   )}
                   {session.status === 'ongoing' && (
                     <Button onClick={() => resume(session)}>继续答辩</Button>

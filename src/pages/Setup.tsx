@@ -1,9 +1,15 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { SessionConfig } from '../types'
+import type { JudgeId, SessionConfig } from '../types'
 import {
+  ALL_JUDGES,
+  DEFAULT_QUESTION_TARGET,
   DEFENSE_TYPE_OPTIONS,
   DISCIPLINE_OPTIONS,
+  JUDGE_OPTIONS,
+  MAX_QUESTION_TARGET,
+  MIN_QUESTION_TARGET,
+  QUESTION_TARGET_PRESETS,
   STRICTNESS_OPTIONS,
   type SelectOption,
 } from '../lib/labels'
@@ -59,11 +65,22 @@ export default function Setup() {
     discipline: 'stem',
     strictness: 'standard',
     minutes: 15,
+    questionTarget: DEFAULT_QUESTION_TARGET,
+    judges: [...ALL_JUDGES],
   })
   const [error, setError] = useState<string | null>(null)
 
   function update<K extends keyof SessionConfig>(key: K, value: SessionConfig[K]) {
     setConfig((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function toggleJudge(judgeId: JudgeId) {
+    const active = config.judges ?? ALL_JUDGES
+    if (active.includes(judgeId) && active.length === 1) return
+    const next = active.includes(judgeId)
+      ? active.filter((id) => id !== judgeId)
+      : [...active, judgeId]
+    update('judges', ALL_JUDGES.filter((id) => next.includes(id)))
   }
 
   function submit() {
@@ -77,6 +94,15 @@ export default function Setup() {
     }
     if (!Number.isFinite(config.minutes) || config.minutes < 1 || config.minutes > 240) {
       setError('限时需在 1-240 分钟之间')
+      return
+    }
+    const target = config.questionTarget ?? DEFAULT_QUESTION_TARGET
+    if (!Number.isFinite(target) || target < MIN_QUESTION_TARGET || target > MAX_QUESTION_TARGET) {
+      setError(`题量需在 ${MIN_QUESTION_TARGET}-${MAX_QUESTION_TARGET} 之间`)
+      return
+    }
+    if (!config.judges || config.judges.length === 0) {
+      setError('请至少选择一位评委')
       return
     }
     setError(null)
@@ -136,6 +162,67 @@ export default function Setup() {
           value={config.strictness}
           onChange={(value) => update('strictness', value)}
         />
+
+        <div>
+          <h2 className="mb-3 text-sm text-paper/60">目标题量（进入答辩室后仍可调整）</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            {QUESTION_TARGET_PRESETS.map((count) => {
+              const pressed = (config.questionTarget ?? DEFAULT_QUESTION_TARGET) === count
+              return (
+                <button
+                  key={count}
+                  type="button"
+                  aria-pressed={pressed}
+                  onClick={() => update('questionTarget', count)}
+                  className={
+                    pressed
+                      ? 'rounded-full border border-gold bg-gold/15 px-4 py-2 text-sm text-gold'
+                      : 'rounded-full border border-white/15 px-4 py-2 text-sm text-paper/70 transition hover:border-white/30 hover:text-paper'
+                  }
+                >
+                  {count} 题
+                </button>
+              )
+            })}
+            <label className="flex items-center gap-2 text-sm text-paper/60">
+              自定义
+              <input
+                type="number"
+                aria-label="自定义目标题量"
+                min={MIN_QUESTION_TARGET}
+                max={MAX_QUESTION_TARGET}
+                value={config.questionTarget ?? DEFAULT_QUESTION_TARGET}
+                onChange={(event) => update('questionTarget', Number(event.target.value))}
+                className="w-20 rounded-xl border border-white/15 bg-ink/60 px-3 py-2 text-sm text-paper outline-none transition focus:border-gold/60"
+              />
+              题
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <h2 className="mb-3 text-sm text-paper/60">参与评委（至少 1 位，按顺序轮换提问）</h2>
+          <div className="flex flex-wrap gap-2">
+            {JUDGE_OPTIONS.map((option) => {
+              const active = (config.judges ?? ALL_JUDGES).includes(option.value)
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => toggleJudge(option.value)}
+                  className={
+                    active
+                      ? 'rounded-full border border-gold/70 bg-gold/[0.14] px-4 py-2 text-sm text-gold'
+                      : 'rounded-full border border-white/12 bg-white/[0.02] px-4 py-2 text-sm text-paper/65 transition hover:border-white/25 hover:text-paper'
+                  }
+                >
+                  {option.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
 
         <div>
           <h2 className="mb-3 text-sm text-paper/60">限时</h2>

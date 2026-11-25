@@ -45,7 +45,7 @@ function recentTurns(payload: Record<string, unknown>): string {
   const raw = payload.recentMessages ?? payload.messages
   if (!Array.isArray(raw) || raw.length === 0) return '（本轮为第一个问题）'
   const lines = raw
-    .slice(-3)
+    .slice(-6)
     .map((item) => {
       const msg = item as { role?: string; text?: string }
       const speaker = msg.role === 'user' ? '学生' : '评委'
@@ -118,13 +118,14 @@ function userFor(task: LLMTask, payload: Record<string, unknown>): string {
       return [
         '请基于以下信息提出下一个答辩问题。',
         `【答辩场景】${scenario(payload)}`,
+        `【本场进度】第 ${asText(payload.questionIndex ?? 1)} 题 / 计划 ${asText(payload.questionTotal ?? '未指定')} 题`,
         `【材料要点】\n${material}`,
         `【选手画像】\n${asText(payload.portrait) || '（未提供）'}`,
         `【最近对话】\n${recentTurns(payload)}`,
         `【严格度】${asText(payload.strictness) || 'standard'}`,
-        `【追问层级】${asText(payload.followUpLevel ?? 0)}`,
         `【本轮评委】${asText(payload.judge) || 'method'}`,
-        '输出字段：judgeId（method|innovation|application）、text（问题）、intent（考察意图）、suggestedSeconds（建议秒数）、followUpLevel（0|1|2）。',
+        `【可参与评委】${asText(payload.judges) || 'method|innovation|application'}`,
+        '输出字段：judgeId（必须是可参与评委之一）、text（问题）、intent（考察意图）、suggestedSeconds（建议秒数）。',
       ].join('\n\n')
     case 'evaluate':
       return [

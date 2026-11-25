@@ -93,6 +93,32 @@ it('asks a question, evaluates the answer and blocks short answers', async () =>
   expect(runTaskMock.mock.calls.length).toBe(callsBeforeShort)
 })
 
+it('stops at the question target and can extend', async () => {
+  const base = buildSession()
+  useSessionStore.setState({
+    session: { ...base, config: { ...base.config, questionTarget: 1 } },
+    mockNotice: false,
+  })
+  const user = userEvent.setup()
+  render(<Session />)
+
+  expect(await screen.findByText('你的样本量为什么是 30？')).toBeInTheDocument()
+  const input = screen.getByRole('textbox', { name: '回答' })
+  await user.type(input, '因为 30 是经验值，符合问卷研究的通常做法{Enter}')
+
+  expect(await screen.findByText(/结论清楚，证据不足/)).toBeInTheDocument()
+  expect(await screen.findByText(/已达到本场目标题量/)).toBeInTheDocument()
+
+  const questionCalls = () =>
+    runTaskMock.mock.calls.filter((call) => (call[0] as { task: string }).task === 'question').length
+  const before = questionCalls()
+
+  await user.click(screen.getByRole('button', { name: '再加 1 题' }))
+
+  await waitFor(() => expect(questionCalls()).toBe(before + 1))
+  expect(useSessionStore.getState().session?.config.questionTarget).toBe(2)
+})
+
 it('finishes the session and navigates to the report', async () => {
   const user = userEvent.setup()
   render(<Session />)

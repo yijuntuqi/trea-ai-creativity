@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { toPng } from 'html-to-image'
 import { getSession } from '../lib/storage'
 import { DEMO_SESSION } from '../mocks/demo'
+import { useSessionStore } from '../store/session'
 import ScoreRadar from '../components/ScoreRadar'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -12,6 +13,7 @@ export default function Report() {
   const navigate = useNavigate()
   const session = (id ? getSession(id) : undefined) ?? (id === DEMO_SESSION.id ? DEMO_SESSION : undefined)
   const report = session?.report
+  const startRetry = useSessionStore((state) => state.startRetry)
   const reportRef = useRef<HTMLDivElement>(null)
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
@@ -67,6 +69,15 @@ export default function Report() {
           </Button>
           <Button variant="ghost" disabled={exporting} onClick={() => void exportImage()}>
             {exporting ? '正在生成…' : '保存报告图片'}
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              startRetry(session)
+              navigate('/material')
+            }}
+          >
+            用这份材料再练
           </Button>
           <Button onClick={() => navigate('/setup')}>再来一场</Button>
         </div>

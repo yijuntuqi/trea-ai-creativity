@@ -8,6 +8,7 @@ import { mockTask } from '../lib/mock'
 import { parseLooseJSON } from '../lib/json'
 import { finalizeReport } from '../lib/report'
 import { canCallToday, consumeCall } from '../lib/quota'
+import { MAX_QUESTION_TARGET, judgesOf, targetOf } from '../lib/labels'
 
 type QuestionOutput = {
   judgeId?: JudgeId
@@ -23,24 +24,27 @@ type EvaluateOutput = {
   followUp?: string | null
 }
 
-const JUDGE_CYCLE: JudgeId[] = ['method', 'innovation', 'application']
-
 function newId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
 }
 
-function pickJudge(questions: Question[]): JudgeId {
+function pickJudge(questions: Question[], pool: JudgeId[]): JudgeId {
   const recent = questions.slice(-2).map((question) => question.judgeId)
-  const start = questions.length % JUDGE_CYCLE.length
-  for (let i = 0; i < JUDGE_CYCLE.length; i += 1) {
-    const candidate = JUDGE_CYCLE[(start + i) % JUDGE_CYCLE.length]
+  const start = questions.length % pool.length
+  for (let i = 0; i < pool.length; i += 1) {
+    const candidate = pool[(start + i) % pool.length]
     if (recent.length < 2 || recent[0] !== candidate || recent[1] !== candidate) return candidate
   }
-  return JUDGE_CYCLE[start]
+  return pool[start]
 }
 
-function guardJudge(returned: JudgeId | undefined, preferred: JudgeId, questions: Question[]): JudgeId {
-  if (!returned || !JUDGE_CYCLE.includes(returned)) return preferred
+function guardJudge(
+  returned: JudgeId | undefined,
+  preferred: JudgeId,
+  questions: Question[],
+  pool: JudgeId[],
+): JudgeId {
+  if (!returned || !pool.includes(returned)) return preferred
   const recent = questions.slice(-2).map((question) => question.judgeId)
   if (recent.length === 2 && recent[0] === returned && recent[1] === returned) return preferred
   return returned
@@ -96,7 +100,8 @@ export function useDefenseEngine(): {
   busy: boolean
   error: string | null
   ask(): Promise<void>
-  answer(text: string): Promise<void>
+  answer(text: string): Promise<boolean>
+  extend(n: number): Promise<void>
   hint(): Promise<string>
   skip(): Promise<void>
   finish(): Promise<void>
@@ -104,7 +109,7 @@ export function useDefenseEngine(): {
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // 预取下一题：点评结束后后台生成，用户点「下一题」时直接秒出
+  // 预取下一题：题目一出就在后台生成，点评结束时可立即抛出
   const queuedRef = useRef<Question | null>(null)
   const preparingRef = useRef<Promise<Question | null> | null>(null)
 
@@ -126,18 +131,21 @@ export function useDefenseEngine(): {
     return result.text
   }
 
-  async function generateQuestion(level: 0 | 1 | 2): Promise<Question | null> {
+  async function generateQuestion(): Promise<Question | null> {
     const current = useSessionStore.getState().session
     if (!current) return null
-    const previous = current.questions[current.questions.length - 1]
-    const preferred = level > 0 && previous ? previous.judgeId : pickJudge(current.questions)
+    const pool = judgesOf(current.config)
+    const preferred = pickJudge(current.questions, pool)
     const raw = await runCall('question', {
       material: current.material.text,
       config: current.config,
       portrait: current.portrait,
       strictness: current.config.strictness,
-      followUpLevel: level,
+      followUpLevel: 0,
+      questionIndex: current.questions.length + 1,
+      questionTotal: Math.max(targetOf(current.config), current.questions.length + 1),
       judge: preferred,
+      judges: pool,
       recentMessages: current.messages.slice(-6).map((message) => ({
         role: message.role,
         text: message.text,
@@ -149,11 +157,11 @@ export function useDefenseEngine(): {
     const suggested = Number(parsed.suggestedSeconds)
     return {
       id: newId('q'),
-      judgeId: level > 0 ? preferred : guardJudge(parsed.judgeId, preferred, current.questions),
+      judgeId: guardJudge(parsed.judgeId, preferred, current.questions, pool),
       text: parsed.text,
       intent: parsed.intent ?? '',
-      suggestedSeconds: Number.isFinite(suggested) && suggested > 0 ? suggested : level > 0 ? 60 : 90,
-      followUpLevel: level,
+      suggestedSeconds: Number.isFinite(suggested) && suggested > 0 ? suggested : 90,
+      followUpLevel: 0,
     }
   }
 
@@ -167,13 +175,15 @@ export function useDefenseEngine(): {
       text: question.text,
       createdAt: Date.now(),
     })
-    // 题目一出就预取下一题：用户作答期间完成生成，点「下一题」时几乎即时
-    if (question.followUpLevel === 0) prepareNext()
+    prepareNext()
   }
 
   function prepareNext(): void {
     if (queuedRef.current || preparingRef.current) return
-    const promise = generateQuestion(0)
+    const current = useSessionStore.getState().session
+    // 达到本场目标题量后不再自动出题，由用户手动加题
+    if (!current || current.questions.length >= targetOf(current.config)) return
+    const promise = generateQuestion()
       .then((question) => {
         if (question) queuedRef.current = question
         return question
@@ -185,36 +195,46 @@ export function useDefenseEngine(): {
     })
   }
 
-  async function doAsk(level: 0 | 1 | 2): Promise<void> {
-    setBusy(true)
-    setError(null)
+  async function askInternal(): Promise<boolean> {
     try {
-      let question: Question | null = null
-      const cached = queuedRef.current
-      if (cached && level === 0 && cached.followUpLevel === 0) {
+      let question: Question | null = queuedRef.current
+      if (question) {
         queuedRef.current = null
-        question = cached
-      } else if (level > 0) {
-        queuedRef.current = null
-      }
-
-      if (!question && level === 0 && preparingRef.current) {
+      } else if (preparingRef.current) {
         question = await preparingRef.current
       }
-      if (!question) question = await generateQuestion(level)
+      if (!question) question = await generateQuestion()
       if (!question) throw new Error('EMPTY_QUESTION')
 
       commitQuestion(question)
+      return true
     } catch {
       setError('提问失败，请重试')
-    } finally {
-      setBusy(false)
+      return false
     }
   }
 
   async function ask(): Promise<void> {
     if (busy) return
-    await doAsk(0)
+    const current = useSessionStore.getState().session
+    if (!current || current.status !== 'ongoing') return
+    if (current.questions.length >= targetOf(current.config)) return
+    setBusy(true)
+    setError(null)
+    try {
+      await askInternal()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function extend(n: number): Promise<void> {
+    if (busy) return
+    const current = useSessionStore.getState().session
+    if (!current) return
+    const next = Math.min(MAX_QUESTION_TARGET, targetOf(current.config) + n)
+    useSessionStore.getState().updateConfig({ questionTarget: next })
+    await ask()
   }
 
   async function evaluateAnswer(payload: Record<string, unknown>): Promise<EvaluateOutput | null> {
@@ -230,19 +250,19 @@ export function useDefenseEngine(): {
     return null
   }
 
-  async function answer(text: string): Promise<void> {
+  async function answer(text: string): Promise<boolean> {
     const trimmed = text.trim()
     if (trimmed.length < 10) {
       setError('回答太短，请至少写 10 个字')
-      return
+      return false
     }
 
     const current = useSessionStore.getState().session
-    if (!current) return
+    if (!current) return false
     const pending = [...current.questions].reverse().find((question) => question.answer === undefined)
     if (!pending) {
       setError('当前没有待回答的问题')
-      return
+      return false
     }
 
     setBusy(true)
@@ -277,14 +297,15 @@ export function useDefenseEngine(): {
         createdAt: Date.now(),
       })
 
-      if (parsed.followUp && pending.followUpLevel < 2) {
-        await doAsk((pending.followUpLevel + 1) as 1 | 2)
-      } else {
-        // 点评已出，后台预取下一题，用户点「下一题」时无需再等
-        prepareNext()
+      // 未达本场目标题量则立刻抛出下一题；到达上限后停止，等用户加题或结束
+      const after = useSessionStore.getState().session
+      if (after && after.questions.length < targetOf(after.config)) {
+        await askInternal()
       }
+      return true
     } catch {
       setError('点评生成失败，请重试')
+      return false
     } finally {
       setBusy(false)
     }
@@ -328,15 +349,24 @@ export function useDefenseEngine(): {
     const pending = [...current.questions].reverse().find((question) => question.answer === undefined)
     if (!pending) return
 
-    const store = useSessionStore.getState()
-    store.answerQuestion(pending.id, '（本题已跳过）', 0)
-    store.addMessage({
-      id: newId('m'),
-      role: 'system',
-      text: '已跳过本题。',
-      createdAt: Date.now(),
-    })
-    await doAsk(0)
+    setBusy(true)
+    setError(null)
+    try {
+      const store = useSessionStore.getState()
+      store.answerQuestion(pending.id, '（本题已跳过）', 0)
+      store.addMessage({
+        id: newId('m'),
+        role: 'system',
+        text: '已跳过本题。',
+        createdAt: Date.now(),
+      })
+      const latest = useSessionStore.getState().session
+      if (latest && latest.questions.length < targetOf(latest.config)) {
+        await askInternal()
+      }
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function finish(): Promise<void> {
@@ -380,5 +410,5 @@ export function useDefenseEngine(): {
     }
   }
 
-  return { busy, error, ask, answer, hint, skip, finish }
+  return { busy, error, ask, answer, extend, hint, skip, finish }
 }

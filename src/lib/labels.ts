@@ -1,4 +1,4 @@
-import type { DefenseType, Discipline, SessionConfig, Strictness } from '../types'
+import type { DefenseType, Discipline, JudgeId, SessionConfig, Strictness } from '../types'
 
 export type SelectOption<T extends string> = { value: T; label: string }
 
@@ -62,4 +62,28 @@ export function typeLabel(config: SessionConfig): string {
 export function disciplineLabel(config: SessionConfig): string {
   if (config.discipline === 'other') return config.customDiscipline?.trim() || DISCIPLINE_LABEL.other
   return DISCIPLINE_LABEL[config.discipline] ?? DISCIPLINE_LABEL.other
+}
+
+export const ALL_JUDGES: JudgeId[] = ['method', 'innovation', 'application']
+
+export const JUDGE_OPTIONS: SelectOption<JudgeId>[] = [
+  { value: 'method', label: '方法论派 · 严谨型' },
+  { value: 'innovation', label: '创新性质疑派 · 犀利型' },
+  { value: 'application', label: '应用价值派 · 务实型' },
+]
+
+export const DEFAULT_QUESTION_TARGET = 6
+export const MIN_QUESTION_TARGET = 1
+export const MAX_QUESTION_TARGET = 30
+export const QUESTION_TARGET_PRESETS = [4, 6, 8, 10]
+
+export function targetOf(config: SessionConfig): number {
+  const value = Number(config.questionTarget)
+  if (!Number.isFinite(value)) return DEFAULT_QUESTION_TARGET
+  return Math.max(MIN_QUESTION_TARGET, Math.min(MAX_QUESTION_TARGET, Math.round(value)))
+}
+
+export function judgesOf(config: SessionConfig): JudgeId[] {
+  const picked = (config.judges ?? []).filter((id): id is JudgeId => ALL_JUDGES.includes(id))
+  return picked.length > 0 ? Array.from(new Set(picked)) : ALL_JUDGES
 }

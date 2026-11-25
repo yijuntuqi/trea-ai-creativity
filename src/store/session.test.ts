@@ -55,6 +55,43 @@ it('moves to ongoing and persists on finish', () => {
   expect(getSession(id)?.status).toBe('finished')
 })
 
+it('updates config for target and judges', () => {
+  useSessionStore.getState().start(config)
+  useSessionStore.getState().updateConfig({ questionTarget: 8, judges: ['innovation'] })
+  expect(useSessionStore.getState().session?.config).toMatchObject({
+    questionTarget: 8,
+    judges: ['innovation'],
+  })
+})
+
+it('starts a retry copy and keeps the original session', async () => {
+  useSessionStore.getState().start(config)
+  await useSessionStore.getState().setMaterial('原材料', 'old.pdf')
+  const originalId = useSessionStore.getState().session?.id ?? ''
+  useSessionStore.getState().addQuestion({
+    id: 'q1',
+    judgeId: 'method',
+    text: '问题',
+    intent: '意图',
+    suggestedSeconds: 90,
+    followUpLevel: 0,
+  })
+  const source = useSessionStore.getState().session
+  expect(source).not.toBeNull()
+  if (!source) return
+
+  useSessionStore.getState().startRetry(source)
+
+  const retry = useSessionStore.getState().session
+  expect(retry?.id).not.toBe(originalId)
+  expect(retry?.status).toBe('ready')
+  expect(retry?.material.text).toBe('原材料')
+  expect(retry?.questions).toEqual([])
+  expect(retry?.messages).toEqual([])
+  expect(retry?.report).toBeUndefined()
+  expect(getSession(originalId)?.questions).toHaveLength(1)
+})
+
 it('restores a saved session by id', () => {
   useSessionStore.getState().start(config)
   const id = useSessionStore.getState().session?.id ?? ''

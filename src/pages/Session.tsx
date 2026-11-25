@@ -1,8 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import type { Portrait } from '../types'
+import type { JudgeId, Portrait } from '../types'
 import { JUDGES, judgeById } from '../lib/judges'
-import { STRICTNESS_SHORT, typeLabel } from '../lib/labels'
+import {
+  ALL_JUDGES,
+  JUDGE_OPTIONS,
+  MAX_QUESTION_TARGET,
+  MIN_QUESTION_TARGET,
+  STRICTNESS_SHORT,
+  judgesOf,
+  targetOf,
+  typeLabel,
+} from '../lib/labels'
 import { isSpeechSupported, speak, stopSpeaking } from '../lib/tts'
 import { useDefenseEngine } from '../hooks/useDefenseEngine'
 import { useElapsedTimer } from '../hooks/useElapsedTimer'
@@ -58,6 +67,7 @@ export default function Session() {
   const session = useSessionStore((state) => state.session)
   const mockNotice = useSessionStore((state) => state.mockNotice)
   const restore = useSessionStore((state) => state.restore)
+  const updateConfig = useSessionStore((state) => state.updateConfig)
   const engine = useDefenseEngine()
 
   const [checked, setChecked] = useState(false)
@@ -131,12 +141,25 @@ export default function Session() {
     if (!next) stopSpeaking()
   }
 
+  const target = targetOf(session.config)
+  const answered = session.questions.length
+  const atLimit = answered >= target
+  const judgePool = judgesOf(session.config)
+
+  function toggleJudge(judgeId: JudgeId) {
+    const active = judgePool.includes(judgeId)
+    if (active && judgePool.length === 1) return
+    const next = active ? judgePool.filter((id) => id !== judgeId) : [...judgePool, judgeId]
+    updateConfig({ judges: ALL_JUDGES.filter((id) => next.includes(id)) })
+  }
+
   async function submit() {
-    const text = answerText
-    if (!text.trim()) return
-    await engine.answer(text)
-    const latest = useSessionStore.getState().session
-    if (latest?.questions.some((question) => question.answer === text.trim())) setAnswerText('')
+    const text = answerText.trim()
+    if (!text) return
+    // 立即清空输入框；提交失败（过短/网络）时再恢复，避免用户以为没提交成功
+    setAnswerText('')
+    const ok = await engine.answer(text)
+    if (!ok) setAnswerText(text)
   }
 
   return (
@@ -145,8 +168,8 @@ export default function Session() {
         <div>
           <h1 className="font-serif text-2xl text-paper">答辩室</h1>
           <p className="mt-1 text-xs text-paper/50">
-            {typeLabel(session.config)} · {STRICTNESS_SHORT[session.config.strictness]}模式 ·
-            共 {session.questions.length} 题
+            {typeLabel(session.config)} · {STRICTNESS_SHORT[session.config.strictness]}模式 · 已完成{' '}
+            {answered} / 目标 {target} 题
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -158,6 +181,56 @@ export default function Session() {
           )}
         </div>
       </header>
+
+      <details className="rounded-2xl border border-white/10 bg-ink-soft/60 p-4">
+        <summary className="cursor-pointer text-sm text-gold/80">本场设置（目标题量 / 参与评委）</summary>
+        <div className="mt-4 grid gap-5 md:grid-cols-2">
+          <label className="flex items-center gap-2 text-sm text-paper/65">
+            目标题量
+            <input
+              type="number"
+              aria-label="目标题量"
+              min={MIN_QUESTION_TARGET}
+              max={MAX_QUESTION_TARGET}
+              value={target}
+              onChange={(event) => {
+                const value = Number(event.target.value)
+                if (Number.isFinite(value) && value >= MIN_QUESTION_TARGET && value <= MAX_QUESTION_TARGET) {
+                  updateConfig({ questionTarget: Math.round(value) })
+                }
+              }}
+              className="w-20 rounded-xl border border-white/15 bg-ink/60 px-3 py-2 text-sm text-paper outline-none transition focus:border-gold/60"
+            />
+            题
+          </label>
+          <div>
+            <p className="mb-2 text-sm text-paper/65">参与评委（至少 1 位）</p>
+            <div className="flex flex-wrap gap-2">
+              {JUDGE_OPTIONS.map((option) => {
+                const active = judgePool.includes(option.value)
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => toggleJudge(option.value)}
+                    className={
+                      active
+                        ? 'rounded-full border border-gold/70 bg-gold/[0.14] px-3 py-1.5 text-xs text-gold'
+                        : 'rounded-full border border-white/12 bg-white/[0.02] px-3 py-1.5 text-xs text-paper/60 transition hover:border-white/25 hover:text-paper'
+                    }
+                  >
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+        <p className="mt-3 text-xs text-paper/40">
+          设置从下一题开始生效；达到目标题量后会停止自动出题，可手动加题继续，直到点「结束并出报告」。
+        </p>
+      </details>
 
       <details className="rounded-2xl border border-white/10 bg-ink-soft/60 p-4 lg:hidden">
         <summary className="cursor-pointer text-sm text-gold/80">材料要点</summary>
@@ -191,6 +264,12 @@ export default function Session() {
             )}
           </Card>
 
+          {!pending && atLimit && session.status === 'ongoing' && (
+            <p className="rounded-xl border border-gold/30 bg-gold/[0.06] px-3 py-2 text-xs leading-relaxed text-gold/85">
+              已达到本场目标题量（{answered} / {target} 题）。可以加题继续练习，或点击「结束并出报告」。
+            </p>
+          )}
+
           <Card className="sticky bottom-0 z-20 space-y-3 backdrop-blur lg:static">
             <Textarea
               aria-label="回答"
@@ -208,10 +287,29 @@ export default function Session() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs text-paper/40">{answerText.trim().length} 字</span>
               <div className="flex items-center gap-2">
-                {!pending && session.questions.length > 0 && session.status === 'ongoing' && (
-                  <Button variant="ghost" disabled={engine.busy} onClick={() => void engine.ask()}>
-                    下一题
-                  </Button>
+                {!pending && session.status === 'ongoing' && answered > 0 && (
+                  atLimit ? (
+                    <>
+                      <Button
+                        variant="ghost"
+                        disabled={engine.busy}
+                        onClick={() => void engine.extend(1)}
+                      >
+                        再加 1 题
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        disabled={engine.busy}
+                        onClick={() => void engine.extend(3)}
+                      >
+                        再加 3 题
+                      </Button>
+                    </>
+                  ) : (
+                    <Button variant="ghost" disabled={engine.busy} onClick={() => void engine.ask()}>
+                      继续提问
+                    </Button>
+                  )
                 )}
                 <Button disabled={engine.busy || !pending || !answerText.trim()} onClick={() => void submit()}>
                   提交回答
@@ -230,7 +328,11 @@ export default function Session() {
             </div>
             <JudgeCard judge={currentJudge} />
             <p className="text-xs leading-relaxed text-paper/50">
-              {pending ? `考察点：${pending.intent || '现场追问'}` : '本题已点评，可继续下一题或结束。'}
+              {pending
+                ? `考察点：${pending.intent || '现场追问'}`
+                : atLimit
+                  ? '已达到目标题量，可加题继续或结束出报告。'
+                  : '本题已点评，下一题即将开始。'}
             </p>
           </Card>
 

@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Portrait } from '../types'
 import { JUDGES } from '../lib/judges'
-import { STRICTNESS_LABEL } from '../lib/labels'
+import { STRICTNESS_LABEL, judgesOf } from '../lib/labels'
 import { ACCEPT_EXTENSIONS, ParseError, parseFile } from '../lib/parse'
 import { generatePortrait } from '../lib/portrait'
 import { useSessionStore } from '../store/session'
@@ -63,7 +63,10 @@ export default function Material() {
 
   const [files, setFiles] = useState<MaterialFile[]>([])
   const [text, setText] = useState('')
-  const [portrait, setLocalPortrait] = useState<Portrait | null>(null)
+  const [reuse, setReuse] = useState(() =>
+    Boolean(session?.material.text && session.status === 'ready' && !session.questions.length),
+  )
+  const [portrait, setLocalPortrait] = useState<Portrait | null>(() => session?.portrait ?? null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [stage, setStage] = useState('')
@@ -144,6 +147,25 @@ export default function Material() {
     }
   }
 
+  async function regenerate() {
+    const current = useSessionStore.getState().session
+    if (!current || !current.material.text) return
+    setError(null)
+    setLoading(true)
+    setStage('评委正在重新提炼研究画像…')
+    try {
+      const result = await generatePortrait(current.material, current.config)
+      setLocalPortrait(result.portrait)
+      setPortrait(result.portrait)
+      if (result.source === 'mock') setMockNotice(true)
+    } catch {
+      setError('画像生成失败，请重试')
+    } finally {
+      setLoading(false)
+      setStage('')
+    }
+  }
+
   function begin() {
     const current = useSessionStore.getState().session
     if (!current) return
@@ -160,7 +182,38 @@ export default function Material() {
         </p>
       </header>
 
-      {!portrait && (
+      {reuse && (
+        <Card className="space-y-4">
+          <div>
+            <p className="text-xs text-paper/40">沿用上一场的材料</p>
+            <p className="mt-1 text-sm text-paper/85">
+              {session.material.fileName ?? '已保存的材料文本'} · {session.material.chars} 字
+            </p>
+          </div>
+          <p className="text-xs leading-relaxed text-paper/50">
+            浏览器只保留了上次解析后的文本，原始文件不会保存。材料有修改时请点「更换材料」重新上传；沿用则直接使用这份文本重新答辩。
+          </p>
+          {error && <p className="text-sm text-red-300">{error}</p>}
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setReuse(false)
+                setLocalPortrait(null)
+                setError(null)
+              }}
+            >
+              更换材料
+            </Button>
+            <Button variant="ghost" disabled={loading} onClick={() => void regenerate()}>
+              {loading ? stage || '重新提炼中…' : '重新提炼材料要点'}
+            </Button>
+            {!portrait && <Button onClick={begin}>直接开始答辩</Button>}
+          </div>
+        </Card>
+      )}
+
+      {!reuse && !portrait && (
         <Card className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
             <label className="cursor-pointer rounded-full border border-white/15 px-4 py-2 text-sm text-paper/75 transition hover:border-gold/60 hover:text-gold">
@@ -248,7 +301,7 @@ export default function Material() {
           <section>
             <h2 className="mb-3 font-serif text-xl text-paper">本场评委</h2>
             <div className="grid gap-4 md:grid-cols-3">
-              {JUDGES.map((judge) => (
+              {JUDGES.filter((judge) => judgesOf(session.config).includes(judge.id)).map((judge) => (
                 <JudgeCard key={judge.id} judge={judge} />
               ))}
             </div>

@@ -9,6 +9,8 @@ export type SessionConfig = {
   discipline: Discipline
   strictness: Strictness
   minutes: number
+  questionTarget?: number
+  judges?: JudgeId[]
   customType?: string
   customDiscipline?: string
 }
