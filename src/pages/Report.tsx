@@ -141,7 +141,7 @@ export default function Report() {
               <div className="mt-4 h-px w-24 bg-gradient-to-r from-gold/70 to-transparent" />
             </div>
             <div className="max-w-md text-right">
-              <span className="inline-block rounded-full border border-gold/40 bg-gold/10 px-4 py-1 text-sm text-gold shadow-[0_10px_30px_-18px_rgba(230,181,99,0.8)]">
+              <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-gold/40 bg-gold/10 px-4 py-1 text-sm text-gold shadow-[0_10px_30px_-18px_rgba(230,181,99,0.8)]">
                 {report.level}
               </span>
               <p className="mt-4 text-sm leading-relaxed text-paper/65">{report.summary}</p>
