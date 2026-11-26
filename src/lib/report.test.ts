@@ -49,6 +49,24 @@ it('finalizes report with local totals and filled reviews', () => {
   expect(typeof report.createdAt).toBe('number')
 })
 
+it('restores question text when model writes a question id in top risks', () => {
+  const output: ReportModelOutput = {
+    dimensions: { accuracy: 70, logic: 70, depth: 70, clarity: 70 },
+    summary: '待改进',
+    checklist: [],
+    topRisks: [
+      { question: 'q2', reason: '未回应方法细节' },
+      { question: '样本代表性如何保证？', reason: '未说明抽样' },
+    ],
+    questionReviews: [],
+  }
+
+  const report = finalizeReport(output, makeSession())
+
+  expect(report.topRisks[0].question).toBe('问题 2')
+  expect(report.topRisks[1].question).toBe('样本代表性如何保证？')
+})
+
 it('prefers stored per-question evaluations over model rewrites', () => {
   const session = makeSession()
   const output: ReportModelOutput = {
