@@ -1,8 +1,8 @@
 import { buildPrompt } from './prompts'
 
-it('uses plus model and long output budget for report', () => {
+it('uses the same stable model as main tasks with long output budget for report', () => {
   const prompt = buildPrompt('report', {})
-  expect(prompt.model).toBe('qwen3.8-plus')
+  expect(prompt.model).toBe('qwen3.8-flash')
   expect(prompt.maxTokens).toBeGreaterThanOrEqual(4000)
 })
 

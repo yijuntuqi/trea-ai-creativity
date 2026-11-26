@@ -12,7 +12,8 @@ export type PromptSpec = {
 }
 
 const MODEL_MAIN = 'qwen3.8-flash'
-const MODEL_REPORT = 'qwen3.8-plus'
+// 报告与主力模型保持一致：qwen3.8-plus 在当前 MaaS 工作区不存在，会返回 model_not_found
+const MODEL_REPORT = 'qwen3.8-flash'
 
 const MAX_TOKENS: Record<LLMTask, number> = {
   portrait: 2000,
