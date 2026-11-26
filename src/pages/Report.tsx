@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getSession } from '../lib/storage'
+import { canRetryWithMaterial, getGuestUploadSession, type PlanTier } from '../lib/entitlement'
 import { DEMO_SESSION } from '../mocks/demo'
+import { useAuthStore } from '../store/auth'
 import { useSessionStore } from '../store/session'
 import {
   EXPORT_OPTIONS,
@@ -24,6 +26,9 @@ export default function Report() {
   const session = (id ? getSession(id) : undefined) ?? (id === DEMO_SESSION.id ? DEMO_SESSION : undefined)
   const report = session?.report
   const startRetry = useSessionStore((state) => state.startRetry)
+  const user = useAuthStore((state) => state.user)
+  const profile = useAuthStore((state) => state.profile)
+  const isVip = useAuthStore((state) => state.isVip)
   const reportRef = useRef<HTMLDivElement>(null)
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
@@ -39,6 +44,14 @@ export default function Report() {
       </section>
     )
   }
+
+  const tier: PlanTier = user ? (isVip ? 'vip' : 'free') : 'guest'
+  const canRetry = canRetryWithMaterial({
+    tier,
+    freeUploadUsed: Boolean(profile?.free_upload_used_at),
+    guestUploadSessionId: getGuestUploadSession(),
+    hasFile: Boolean(session.material.fileName),
+  })
 
   async function handleExport() {
     if (!session) return
@@ -112,15 +125,21 @@ export default function Report() {
           <Button variant="ghost" disabled={exporting} onClick={() => void handleExport()}>
             {exporting ? '正在生成…' : '保存报告'}
           </Button>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              startRetry(session)
-              navigate('/material')
-            }}
-          >
-            用这份材料再练
-          </Button>
+          {canRetry ? (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                startRetry(session)
+                navigate('/material')
+              }}
+            >
+              用这份材料再练
+            </Button>
+          ) : (
+            <Button variant="ghost" onClick={() => navigate('/vip')}>
+              升级 VIP 再练
+            </Button>
+          )}
           <Button onClick={() => navigate('/setup')}>再来一场</Button>
         </div>
       </div>

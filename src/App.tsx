@@ -8,6 +8,7 @@ import Material from './pages/Material'
 import ReportPage from './pages/Report'
 import Session from './pages/Session'
 import Setup from './pages/Setup'
+import Vip from './pages/Vip'
 import { useAuthStore } from './store/auth'
 
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/report/:id" element={<ReportPage />} />
           <Route path="/history" element={<History />} />
           <Route path="/account" element={<Account />} />
+          <Route path="/vip" element={<Vip />} />
         </Routes>
       </AppShell>
     </BrowserRouter>

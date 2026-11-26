@@ -59,6 +59,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <NavLink to="/history" className={navClass}>
               历史记录
             </NavLink>
+            <NavLink to="/vip" className={navClass}>
+              会员
+            </NavLink>
             <NavLink to="/account" className={navClass}>
               {user ? '账号' : '登录'}
             </NavLink>

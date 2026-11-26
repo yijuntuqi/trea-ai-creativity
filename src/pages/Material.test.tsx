@@ -9,7 +9,12 @@ const { navigateMock, generatePortraitMock } = vi.hoisted(() => ({
   generatePortraitMock: vi.fn(),
 }))
 
-vi.mock('react-router-dom', () => ({ useNavigate: () => navigateMock }))
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => navigateMock,
+  Link: ({ to, children }: { to: string; children?: React.ReactNode }) => (
+    <a href={to}>{children}</a>
+  ),
+}))
 vi.mock('../lib/portrait', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../lib/portrait')>()
   return { ...actual, generatePortrait: generatePortraitMock }
@@ -43,7 +48,7 @@ it('analyzes pasted text and starts the defense', async () => {
   const user = userEvent.setup()
   render(<Material />)
 
-  await user.type(screen.getByRole('textbox'), '这是一段足够长的答辩材料，'.repeat(15))
+  await user.type(screen.getByLabelText('材料文本'), '这是一段足够长的答辩材料，'.repeat(15))
   await user.click(screen.getByRole('button', { name: '解析并生成画像' }))
 
   expect(await screen.findByText('基于深度学习的中文情感分析')).toBeInTheDocument()

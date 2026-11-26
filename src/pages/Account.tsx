@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
+import { vipExpiryLabel } from '../lib/entitlement'
 import { passwordIssue } from '../lib/password'
 import { isCloudEnabled } from '../lib/supabase'
 import { Button } from '../components/ui/Button'
@@ -42,6 +44,8 @@ function ModeTab({
 
 export default function Account() {
   const user = useAuthStore((state) => state.user)
+  const profile = useAuthStore((state) => state.profile)
+  const isVip = useAuthStore((state) => state.isVip)
   const busy = useAuthStore((state) => state.busy)
   const error = useAuthStore((state) => state.error)
   const notice = useAuthStore((state) => state.notice)
@@ -192,6 +196,16 @@ export default function Account() {
               {syncLabel(sync)}
             </span>
             {syncAt && <span>上次同步 {new Date(syncAt).toLocaleTimeString('zh-CN')}</span>}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs">
+            <span className="text-paper/55">
+              {isVip
+                ? `VIP 会员 · 有效期至 ${vipExpiryLabel(profile) ?? '长期有效'}`
+                : `免费用户 · 免费上传额度${profile?.free_upload_used_at ? '已用完' : '可用一次（单文件 5MB）'}`}
+            </span>
+            <Link to="/vip" className="text-gold/80 transition hover:text-gold">
+              {isVip ? '查看权益' : '升级 VIP'}
+            </Link>
           </div>
           <p className="text-xs leading-relaxed text-paper/45">
             同步内容包括材料解析后的文本、问答过程与报告；原始上传文件不会上传。

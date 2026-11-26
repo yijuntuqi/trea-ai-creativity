@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import type { Session } from '../types'
 import { clearCloudSessions, deleteCloudSession } from '../lib/cloud'
 import { clearSessions, deleteSession, loadSessions } from '../lib/storage'
+import { canRetryWithMaterial, getGuestUploadSession, type PlanTier } from '../lib/entitlement'
 import { typeLabel } from '../lib/labels'
 import { useAuthStore } from '../store/auth'
 import { useSessionStore } from '../store/session'
@@ -35,8 +36,22 @@ export default function History() {
   const restore = useSessionStore((state) => state.restore)
   const startRetry = useSessionStore((state) => state.startRetry)
   const user = useAuthStore((state) => state.user)
+  const profile = useAuthStore((state) => state.profile)
+  const isVip = useAuthStore((state) => state.isVip)
   const syncAt = useAuthStore((state) => state.syncAt)
   const [sessions, setSessions] = useState<Session[]>(() => loadSessions())
+
+  const tier: PlanTier = user ? (isVip ? 'vip' : 'free') : 'guest'
+  const guestUploadSessionId = getGuestUploadSession()
+
+  function retryAllowed(session: Session): boolean {
+    return canRetryWithMaterial({
+      tier,
+      freeUploadUsed: Boolean(profile?.free_upload_used_at),
+      guestUploadSessionId,
+      hasFile: Boolean(session.material.fileName),
+    })
+  }
 
   useEffect(() => {
     if (user) void useAuthStore.getState().syncNow()
@@ -120,11 +135,16 @@ export default function History() {
                   {session.report && (
                     <Button onClick={() => navigate(`/report/${session.id}`)}>查看报告</Button>
                   )}
-                  {session.status === 'finished' && (
-                    <Button variant="ghost" onClick={() => retry(session)}>
-                      再练一场
-                    </Button>
-                  )}
+                  {session.status === 'finished' &&
+                    (retryAllowed(session) ? (
+                      <Button variant="ghost" onClick={() => retry(session)}>
+                        再练一场
+                      </Button>
+                    ) : (
+                      <Button variant="ghost" onClick={() => navigate('/vip')}>
+                        升级 VIP 再练
+                      </Button>
+                    ))}
                   {session.status === 'ongoing' && (
                     <Button onClick={() => resume(session)}>继续答辩</Button>
                   )}

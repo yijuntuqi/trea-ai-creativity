@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { Session as AuthSession } from '@supabase/supabase-js'
 import { isCloudReady, setCloudUser, syncAll } from '../lib/cloud'
+import { isVipActive, type Profile } from '../lib/entitlement'
 import { supabase } from '../lib/supabase'
 
 export type AuthUser = { id: string; email: string }
@@ -8,6 +9,12 @@ export type SyncStatus = 'idle' | 'syncing' | 'ok' | 'error'
 
 type AuthState = {
   user: AuthUser | null
+  /**
+   * 登录用户的档案（会员等级、到期时间、免费上传额度）。
+   * 未登录或未配置云端时为 null。
+   */
+  profile: Profile | null
+  isVip: boolean
   ready: boolean
   busy: boolean
   error: string | null
@@ -24,6 +31,7 @@ type AuthState = {
   updatePassword(password: string): Promise<boolean>
   signOut(): Promise<void>
   syncNow(): Promise<void>
+  refreshProfile(): Promise<void>
   clearFeedback(): void
 }
 
@@ -54,10 +62,13 @@ export const useAuthStore = create<AuthState>((set, get) => {
   function applyUser(user: AuthUser | null) {
     set({ user })
     setCloudUser(user?.id ?? null)
+    if (!user) set({ profile: null, isVip: false })
   }
 
   return {
     user: null,
+    profile: null,
+    isVip: false,
     ready: false,
     busy: false,
     error: null,
@@ -84,9 +95,13 @@ export const useAuthStore = create<AuthState>((set, get) => {
         const prev = get().user
         applyUser(next)
         if (next && prev?.id !== next.id) void get().syncNow()
+        void get().refreshProfile()
       })
 
-      if (user) void get().syncNow()
+      if (user) {
+        void get().refreshProfile()
+        void get().syncNow()
+      }
     },
 
     async signIn(email, password) {
@@ -107,6 +122,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       }
       applyUser(toUser(data.session))
       set({ notice: '已登录，正在同步历史记录…' })
+      await get().refreshProfile()
       await get().syncNow()
       return true
     },
@@ -131,6 +147,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       if (data.session) {
         applyUser(toUser(data.session))
         set({ notice: '注册成功，正在同步历史记录…' })
+        await get().refreshProfile()
         await get().syncNow()
         return true
       }
@@ -199,6 +216,24 @@ export const useAuthStore = create<AuthState>((set, get) => {
         syncAt: null,
         notice: '已退出登录，记录仍保留在本机。',
       })
+    },
+
+    async refreshProfile() {
+      const current = get().user
+      if (!supabase || !current) {
+        set({ profile: null, isVip: false })
+        return
+      }
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(
+          'id,email,display_name,avatar_url,plan,vip_expires_at,free_upload_used_at,free_upload_session_id',
+        )
+        .eq('id', current.id)
+        .maybeSingle()
+      if (error || !data) return
+      const profile = data as unknown as Profile
+      set({ profile, isVip: isVipActive(profile) })
     },
 
     async syncNow() {

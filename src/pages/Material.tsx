@@ -1,20 +1,35 @@
 import { useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import type { Portrait } from '../types'
 import { JUDGES } from '../lib/judges'
 import { STRICTNESS_LABEL, judgesOf } from '../lib/labels'
 import { ACCEPT_EXTENSIONS, ParseError, parseFile } from '../lib/parse'
 import { generatePortrait } from '../lib/portrait'
+import {
+  canUploadFiles,
+  checkFileSizes,
+  formatBytes,
+  getGuestUploadSession,
+  limitsFor,
+  markGuestUploadSession,
+  type PlanTier,
+} from '../lib/entitlement'
+import { parseRepoUrl } from '../lib/github'
+import { supabase } from '../lib/supabase'
+import { useAuthStore } from '../store/auth'
 import { useSessionStore } from '../store/session'
 import JudgeCard from '../components/JudgeCard'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
+import { Input } from '../components/ui/Input'
 import { Textarea } from '../components/ui/Textarea'
 
 type MaterialFile = {
   id: string
   name: string
   text: string
+  /** 原始字节数，用于大小额度校验与展示 */
+  size: number
 }
 
 function errorText(error: unknown): string {
@@ -60,6 +75,9 @@ export default function Material() {
   const setMaterial = useSessionStore((state) => state.setMaterial)
   const setPortrait = useSessionStore((state) => state.setPortrait)
   const setMockNotice = useSessionStore((state) => state.setMockNotice)
+  const profile = useAuthStore((state) => state.profile)
+  const user = useAuthStore((state) => state.user)
+  const isVip = useAuthStore((state) => state.isVip)
 
   const [files, setFiles] = useState<MaterialFile[]>([])
   const [text, setText] = useState('')
@@ -69,7 +87,11 @@ export default function Material() {
   const [portrait, setLocalPortrait] = useState<Portrait | null>(() => session?.portrait ?? null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [starting, setStarting] = useState(false)
   const [stage, setStage] = useState('')
+  const [repoUrl, setRepoUrl] = useState('')
+  const [repoBusy, setRepoBusy] = useState(false)
+  const [repoNotice, setRepoNotice] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   if (!session) {
@@ -81,6 +103,20 @@ export default function Material() {
       </section>
     )
   }
+
+  // 已登录但档案尚未读取时按免费用户处理，服务端 RPC 仍是最终裁判
+  const tier: PlanTier = user ? (isVip ? 'vip' : 'free') : 'guest'
+  const limits = limitsFor(tier)
+  const guestUploadSessionId = getGuestUploadSession()
+  const uploadAllowed = canUploadFiles({
+    tier,
+    sessionId: session.id,
+    freeUploadUsed: Boolean(profile?.free_upload_used_at),
+    freeUploadSessionId: profile?.free_upload_session_id ?? null,
+    guestUploadSessionId,
+  })
+  const freeQuotaUsed = tier === 'free' && Boolean(profile?.free_upload_used_at)
+  const fileBytes = files.reduce((sum, file) => sum + file.size, 0)
 
   const fileChars = files.reduce((sum, file) => sum + file.text.length, 0)
   const totalChars = fileChars + text.trim().length
@@ -98,13 +134,31 @@ export default function Material() {
     if (selected.length === 0) return
 
     setError(null)
+
+    if (!uploadAllowed) {
+      setError(
+        '免费上传额度已用完。免费用户只能上传一场答辩的材料，升级 VIP 可不限次上传。',
+      )
+      return
+    }
+
+    const sizeCheck = checkFileSizes(
+      selected.map((file) => ({ name: file.name, size: file.size })),
+      fileBytes,
+      tier,
+    )
+    if (!sizeCheck.ok) {
+      setError(sizeCheck.message)
+      return
+    }
+
     const failures: string[] = []
     const added: MaterialFile[] = []
 
     for (const file of selected) {
       try {
         const parsed = await parseFile(file)
-        added.push({ id: newFileId(), name: file.name, text: parsed.text })
+        added.push({ id: newFileId(), name: file.name, text: parsed.text, size: file.size })
       } catch (uploadError) {
         failures.push(`${file.name}：${errorText(uploadError)}`)
       }
@@ -166,11 +220,118 @@ export default function Material() {
     }
   }
 
-  function begin() {
+  async function begin() {
     const current = useSessionStore.getState().session
     if (!current) return
-    useSessionStore.getState().begin()
-    navigate(`/session/${current.id}`)
+    const hasFile = Boolean(current.material.fileName)
+
+    if (!hasFile || tier === 'vip') {
+      useSessionStore.getState().begin()
+      navigate(`/session/${current.id}`)
+      return
+    }
+
+    setError(null)
+    setStarting(true)
+    try {
+      if (tier === 'guest') {
+        const used = getGuestUploadSession()
+        if (used && used !== current.id) {
+          setError('本机的免费上传额度已用完，升级 VIP 可不限次上传。')
+          return
+        }
+        markGuestUploadSession(current.id)
+      } else {
+        // 登录的免费用户：服务端强校验，一场只能领取一次
+        if (profile?.free_upload_session_id === current.id) {
+          useSessionStore.getState().begin()
+          navigate(`/session/${current.id}`)
+          return
+        }
+        if (profile?.free_upload_used_at) {
+          setError('免费上传额度已用完。升级 VIP 可不限次上传带文件的答辩。')
+          return
+        }
+        if (!supabase) {
+          setError('账号服务不可用，暂时无法领取免费额度，请稍后重试。')
+          return
+        }
+        const { data, error: claimError } = await supabase.rpc('claim_free_upload', {
+          p_session_id: current.id,
+        })
+        const result = data as { allowed?: boolean; reason?: string } | null
+        if (claimError || result?.allowed !== true) {
+          setError('领取免费上传额度失败，请重试或升级 VIP。')
+          return
+        }
+        await useAuthStore.getState().refreshProfile()
+      }
+      useSessionStore.getState().begin()
+      navigate(`/session/${current.id}`)
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  async function importRepo() {
+    setRepoNotice(null)
+    if (!isVip) {
+      setRepoNotice('GitHub 仓库导入是 VIP 权益，升级后即可使用。')
+      return
+    }
+    const ref = parseRepoUrl(repoUrl)
+    if (!ref) {
+      setRepoNotice('请输入公开仓库地址，例如 https://github.com/owner/repo')
+      return
+    }
+    if (!supabase) {
+      setRepoNotice('账号服务未配置，暂不能导入仓库。')
+      return
+    }
+    setRepoBusy(true)
+    try {
+      const { data } = await supabase.auth.getSession()
+      const token = data.session?.access_token
+      if (!token) {
+        setRepoNotice('请先登录账号再导入仓库。')
+        return
+      }
+      const response = await fetch('/api/github-import', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify({ repoUrl: `https://github.com/${ref.slug}` }),
+      })
+      const payload = (await response.json().catch(() => null)) as {
+        text?: string
+        truncated?: boolean
+        message?: string
+        error?: string
+      } | null
+      if (!response.ok || typeof payload?.text !== 'string' || !payload.text.trim()) {
+        setRepoNotice(payload?.message ?? '仓库导入失败，请确认是公开仓库后重试。')
+        return
+      }
+      const text = payload.text
+      setFiles((prev) => [
+        ...prev,
+        {
+          id: newFileId(),
+          name: `GitHub · ${ref.slug}`,
+          text,
+          size: new TextEncoder().encode(text).length,
+        },
+      ])
+      setRepoNotice(
+        payload.truncated
+          ? `已导入 ${ref.slug}（README 与顶层目录，内容较长已截断到 2 万字）。`
+          : `已导入 ${ref.slug}（README 与顶层目录，共 ${text.length} 字）。`,
+      )
+      setRepoUrl('')
+    } catch {
+      setRepoNotice('仓库导入请求失败，请稍后重试。')
+    } finally {
+      setRepoBusy(false)
+    }
   }
 
   return (
@@ -178,7 +339,8 @@ export default function Material() {
       <header>
         <h1 className="font-serif text-3xl text-paper">上传材料</h1>
         <p className="mt-2 text-sm text-paper/60">
-          支持 PDF、PPTX、Word、Excel、Markdown、JSON、CSV、TXT，可一次上传多个文件；文件只在浏览器内解析，原始文件不会上传。未登录时记录只在本机，登录后解析文本会同步到云端。
+          支持 PDF、PPTX、Word、Excel、Markdown、JSON、CSV、TXT，可一次上传多个文件；文件只在浏览器内解析，原始文件不会上传。单文件 {formatBytes(limits.perFileBytes)}、本场累计 {formatBytes(limits.totalBytes)}
+          {tier === 'vip' ? '（VIP 额度）' : '（免费额度）'}，未登录时记录只在本机，登录后解析文本会同步到云端。
         </p>
       </header>
 
@@ -208,7 +370,11 @@ export default function Material() {
             <Button variant="ghost" disabled={loading} onClick={() => void regenerate()}>
               {loading ? stage || '重新提炼中…' : '重新提炼材料要点'}
             </Button>
-            {!portrait && <Button onClick={begin}>直接开始答辩</Button>}
+            {!portrait && (
+              <Button disabled={starting} onClick={() => void begin()}>
+                {starting ? '正在领取额度…' : '直接开始答辩'}
+              </Button>
+            )}
           </div>
         </Card>
       )}
@@ -216,7 +382,13 @@ export default function Material() {
       {!reuse && !portrait && (
         <Card className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
-            <label className="cursor-pointer rounded-full border border-white/15 px-4 py-2 text-sm text-paper/75 transition hover:border-gold/60 hover:text-gold">
+            <label
+              className={
+                uploadAllowed
+                  ? 'cursor-pointer rounded-full border border-white/15 px-4 py-2 text-sm text-paper/75 transition hover:border-gold/60 hover:text-gold'
+                  : 'cursor-not-allowed rounded-full border border-white/10 px-4 py-2 text-sm text-paper/35'
+              }
+            >
               选择文件
               <input
                 ref={inputRef}
@@ -231,6 +403,31 @@ export default function Material() {
             <span className="text-xs text-paper/40">可多选；论文、报告、实验数据可一起上传</span>
           </div>
 
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs">
+            <span className="text-paper/45">
+              单文件上限 {formatBytes(limits.perFileBytes)} · 本场累计 {formatBytes(limits.totalBytes)}
+            </span>
+            {tier === 'vip' ? (
+              <span className="text-gold/80">VIP 大文件通道</span>
+            ) : (
+              <Link to="/vip" className="text-gold/80 transition hover:text-gold">
+                升级 VIP 解锁 20MB / 50MB 与 GitHub 导入
+              </Link>
+            )}
+          </div>
+
+          {!uploadAllowed && (
+            <p className="rounded-xl border border-gold/25 bg-gold/[0.06] px-3 py-2 text-xs leading-relaxed text-gold/85">
+              免费上传额度已用完。免费用户只能上传一场答辩的材料，该场结束后历史记录中只能查看报告、不能再次上传；升级 VIP 可不限次上传。纯文本答辩始终免费不限次。
+            </p>
+          )}
+
+          {freeQuotaUsed && uploadAllowed && (
+            <p className="text-xs leading-relaxed text-paper/45">
+              本场已使用免费上传额度，结束后不可在历史记录中重新上传；纯文本答辩不限次。
+            </p>
+          )}
+
           {files.length > 0 && (
             <ul className="space-y-2">
               {files.map((file) => (
@@ -240,7 +437,9 @@ export default function Material() {
                 >
                   <div className="min-w-0">
                     <p className="text-sm text-paper/85">{file.name}</p>
-                    <p className="text-xs text-paper/40">{file.text.length} 字</p>
+                    <p className="text-xs text-paper/40">
+                      {file.text.length} 字 · {formatBytes(file.size)}
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -277,6 +476,49 @@ export default function Material() {
         </Card>
       )}
 
+      {!reuse && !portrait && (
+        <Card className="space-y-3">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <p className="text-sm text-paper/85">GitHub 公开仓库导入</p>
+              <p className="mt-1 text-xs leading-relaxed text-paper/45">
+                粘贴公开仓库链接，自动抓取 README 与顶层目录（最多 2 万字），不读取私有仓库。
+              </p>
+            </div>
+            <span
+              className={
+                isVip
+                  ? 'shrink-0 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 text-xs text-gold/85'
+                  : 'shrink-0 rounded-full border border-white/12 bg-white/[0.03] px-3 py-1 text-xs text-paper/45'
+              }
+            >
+              {isVip ? 'VIP 权益' : 'VIP 专属'}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              aria-label="GitHub 仓库地址"
+              value={repoUrl}
+              onChange={(event) => setRepoUrl(event.target.value)}
+              placeholder="https://github.com/owner/repo"
+              className="min-w-0 flex-1"
+            />
+            <Button variant="ghost" disabled={repoBusy} onClick={() => void importRepo()}>
+              {repoBusy ? '导入中…' : '导入仓库'}
+            </Button>
+          </div>
+          {repoNotice && <p className="text-xs leading-relaxed text-gold/85">{repoNotice}</p>}
+          {!isVip && (
+            <p className="text-xs text-paper/40">
+              升级 VIP 后可使用仓库导入，
+              <Link to="/vip" className="ml-1 text-gold/80 transition hover:text-gold">
+                查看会员权益
+              </Link>
+            </p>
+          )}
+        </Card>
+      )}
+
       {portrait && (
         <>
           <Card className="space-y-5">
@@ -308,8 +550,8 @@ export default function Material() {
           </section>
 
           <div className="flex justify-end">
-            <Button size="lg" onClick={begin}>
-              开始答辩
+            <Button size="lg" disabled={starting} onClick={() => void begin()}>
+              {starting ? '正在领取额度…' : '开始答辩'}
             </Button>
           </div>
         </>
