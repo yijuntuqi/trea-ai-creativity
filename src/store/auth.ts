@@ -39,8 +39,8 @@ function errorMessage(raw: string): string {
   if (text.includes('already registered') || text.includes('already been registered')) {
     return '该邮箱已注册，请直接登录'
   }
-  if (text.includes('password should be at least')) return '密码至少 8 位，且包含字母和数字'
-  if (text.includes('password')) return '密码不符合要求：至少 8 位，需包含字母和数字'
+  if (text.includes('password should be at least')) return '密码至少 8 位，且包含大小写字母、数字和符号'
+  if (text.includes('password')) return '密码不符合要求：至少 8 位，需包含大小写字母、数字和符号'
   if (text.includes('provider is not enabled')) return '该登录方式尚未在 Supabase 后台开启'
   if (text.includes('rate limit') || text.includes('too many')) return '操作过于频繁，请稍后再试'
   if (text.includes('unable to validate email') || text.includes('invalid email')) return '邮箱格式不正确'

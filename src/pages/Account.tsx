@@ -149,7 +149,7 @@ export default function Account() {
           </div>
           <form className="space-y-3" onSubmit={(event) => void submitNewPassword(event)}>
             <label className="block space-y-2">
-              <span className="text-xs text-paper/50">新密码（至少 8 位，含字母和数字）</span>
+              <span className="text-xs text-paper/50">新密码（至少 8 位，含大小写字母、数字和符号）</span>
               <Input
                 type="password"
                 autoComplete="new-password"
@@ -229,7 +229,7 @@ export default function Account() {
             {mode !== 'forgot' && (
               <label className="block space-y-2">
                 <span className="text-xs text-paper/50">
-                  {mode === 'signUp' ? '密码（至少 8 位，含字母和数字）' : '密码'}
+                  {mode === 'signUp' ? '密码（至少 8 位，含大小写字母、数字和符号）' : '密码'}
                 </span>
                 <Input
                   type="password"
