@@ -14,9 +14,14 @@ type AuthState = {
   notice: string | null
   sync: SyncStatus
   syncAt: number | null
+  /** 用户从重置密码邮件点进来时为 true，展示设置新密码表单 */
+  recovering: boolean
   init(): Promise<void>
   signIn(email: string, password: string): Promise<boolean>
   signUp(email: string, password: string): Promise<boolean>
+  signInWithGitHub(): Promise<void>
+  sendPasswordReset(email: string): Promise<boolean>
+  updatePassword(password: string): Promise<boolean>
   signOut(): Promise<void>
   syncNow(): Promise<void>
   clearFeedback(): void
@@ -34,7 +39,9 @@ function errorMessage(raw: string): string {
   if (text.includes('already registered') || text.includes('already been registered')) {
     return '该邮箱已注册，请直接登录'
   }
-  if (text.includes('password should be at least')) return '密码至少 6 位'
+  if (text.includes('password should be at least')) return '密码至少 8 位，且包含字母和数字'
+  if (text.includes('password')) return '密码不符合要求：至少 8 位，需包含字母和数字'
+  if (text.includes('provider is not enabled')) return '该登录方式尚未在 Supabase 后台开启'
   if (text.includes('rate limit') || text.includes('too many')) return '操作过于频繁，请稍后再试'
   if (text.includes('unable to validate email') || text.includes('invalid email')) return '邮箱格式不正确'
   if (text.includes('signups not allowed')) return '当前项目未开放注册'
@@ -57,6 +64,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     notice: null,
     sync: 'idle',
     syncAt: null,
+    recovering: false,
 
     async init() {
       if (initialized) return
@@ -70,7 +78,8 @@ export const useAuthStore = create<AuthState>((set, get) => {
       applyUser(user)
       set({ ready: true })
 
-      supabase.auth.onAuthStateChange((_event, session) => {
+      supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'PASSWORD_RECOVERY') set({ recovering: true, notice: null, error: null })
         const next = toUser(session)
         const prev = get().user
         applyUser(next)
@@ -131,6 +140,53 @@ export const useAuthStore = create<AuthState>((set, get) => {
       return true
     },
 
+    async signInWithGitHub() {
+      set({ error: null, notice: null })
+      if (!supabase) {
+        set({ error: '账号服务未配置，当前只能本机保存记录' })
+        return
+      }
+      // GitHub 授权后跳回本页，OAuth 邮箱默认视为已验证
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: { redirectTo: `${window.location.origin}/account` },
+      })
+      if (error) set({ error: errorMessage(error.message) })
+    },
+
+    async sendPasswordReset(email) {
+      set({ error: null, notice: null })
+      if (!supabase) {
+        set({ error: '账号服务未配置，当前只能本机保存记录' })
+        return false
+      }
+      set({ busy: true })
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/account`,
+      })
+      set({ busy: false })
+      if (error) {
+        set({ error: errorMessage(error.message) })
+        return false
+      }
+      set({ notice: `重置邮件已发送到 ${email.trim()}，点开邮件里的链接后会回到本页设置新密码。` })
+      return true
+    },
+
+    async updatePassword(password) {
+      set({ error: null, notice: null })
+      if (!supabase) return false
+      set({ busy: true })
+      const { error } = await supabase.auth.updateUser({ password })
+      set({ busy: false })
+      if (error) {
+        set({ error: errorMessage(error.message) })
+        return false
+      }
+      set({ recovering: false, notice: '密码已更新，之后可用新密码登录。' })
+      return true
+    },
+
     async signOut() {
       if (!supabase) return
       set({ busy: true })
@@ -138,6 +194,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       applyUser(null)
       set({
         busy: false,
+        recovering: false,
         sync: 'idle',
         syncAt: null,
         notice: '已退出登录，记录仍保留在本机。',

@@ -1,17 +1,43 @@
 import { useState } from 'react'
 import { useAuthStore } from '../store/auth'
+import { passwordIssue } from '../lib/password'
 import { isCloudEnabled } from '../lib/supabase'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
 
-type Mode = 'signIn' | 'signUp'
+type Mode = 'signIn' | 'signUp' | 'forgot'
 
 function syncLabel(status: string): string {
   if (status === 'syncing') return '同步中…'
   if (status === 'ok') return '已同步'
   if (status === 'error') return '同步失败，稍后自动重试'
   return '未同步'
+}
+
+function ModeTab({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={
+        active
+          ? 'rounded-full border border-gold/60 bg-gold/[0.12] px-4 py-1.5 text-xs text-gold'
+          : 'rounded-full border border-white/12 bg-white/[0.02] px-4 py-1.5 text-xs text-paper/60 transition hover:text-paper'
+      }
+    >
+      {label}
+    </button>
+  )
 }
 
 export default function Account() {
@@ -21,8 +47,12 @@ export default function Account() {
   const notice = useAuthStore((state) => state.notice)
   const sync = useAuthStore((state) => state.sync)
   const syncAt = useAuthStore((state) => state.syncAt)
+  const recovering = useAuthStore((state) => state.recovering)
   const signIn = useAuthStore((state) => state.signIn)
   const signUp = useAuthStore((state) => state.signUp)
+  const signInWithGitHub = useAuthStore((state) => state.signInWithGitHub)
+  const sendPasswordReset = useAuthStore((state) => state.sendPasswordReset)
+  const updatePassword = useAuthStore((state) => state.updatePassword)
   const signOut = useAuthStore((state) => state.signOut)
   const syncNow = useAuthStore((state) => state.syncNow)
   const clearFeedback = useAuthStore((state) => state.clearFeedback)
@@ -34,18 +64,53 @@ export default function Account() {
 
   function switchMode(next: Mode) {
     setMode(next)
+    setPassword('')
+    setConfirm('')
     clearFeedback()
   }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault()
-    if (!email.trim() || !password) return
-    if (mode === 'signUp' && password !== confirm) {
+    if (!email.trim()) return
+
+    if (mode === 'forgot') {
+      await sendPasswordReset(email)
+      return
+    }
+    if (!password) return
+
+    if (mode === 'signUp') {
+      const issue = passwordIssue(password)
+      if (issue) {
+        useAuthStore.setState({ error: issue })
+        return
+      }
+      if (password !== confirm) {
+        useAuthStore.setState({ error: '两次输入的密码不一致' })
+        return
+      }
+      await signUp(email, password)
+      return
+    }
+    await signIn(email, password)
+  }
+
+  async function submitNewPassword(event: React.FormEvent) {
+    event.preventDefault()
+    const issue = passwordIssue(password)
+    if (issue) {
+      useAuthStore.setState({ error: issue })
+      return
+    }
+    if (password !== confirm) {
       useAuthStore.setState({ error: '两次输入的密码不一致' })
       return
     }
-    if (mode === 'signIn') await signIn(email, password)
-    else await signUp(email, password)
+    const ok = await updatePassword(password)
+    if (ok) {
+      setPassword('')
+      setConfirm('')
+    }
   }
 
   if (!isCloudEnabled) {
@@ -76,7 +141,47 @@ export default function Account() {
         </p>
       </header>
 
-      {user ? (
+      {recovering ? (
+        <Card className="space-y-5">
+          <div>
+            <p className="text-sm text-paper/85">设置新密码</p>
+            <p className="mt-1 text-xs text-paper/45">通过重置邮件进入，设置后即可用新密码登录。</p>
+          </div>
+          <form className="space-y-3" onSubmit={(event) => void submitNewPassword(event)}>
+            <label className="block space-y-2">
+              <span className="text-xs text-paper/50">新密码（至少 8 位，含字母和数字）</span>
+              <Input
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={8}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="••••••••"
+              />
+            </label>
+            <label className="block space-y-2">
+              <span className="text-xs text-paper/50">确认新密码</span>
+              <Input
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={8}
+                value={confirm}
+                onChange={(event) => setConfirm(event.target.value)}
+                placeholder="••••••••"
+              />
+            </label>
+            {error && <p className="text-sm text-red-300">{error}</p>}
+            {notice && <p className="text-sm leading-relaxed text-gold/85">{notice}</p>}
+            <div className="flex justify-end pt-1">
+              <Button type="submit" disabled={busy}>
+                {busy ? '处理中…' : '保存新密码'}
+              </Button>
+            </div>
+          </form>
+        </Card>
+      ) : user ? (
         <Card className="space-y-5">
           <div>
             <p className="text-xs text-paper/40">当前账号</p>
@@ -105,30 +210,8 @@ export default function Account() {
       ) : (
         <Card className="space-y-5">
           <div className="flex gap-2">
-            <button
-              type="button"
-              aria-pressed={mode === 'signIn'}
-              onClick={() => switchMode('signIn')}
-              className={
-                mode === 'signIn'
-                  ? 'rounded-full border border-gold/60 bg-gold/[0.12] px-4 py-1.5 text-xs text-gold'
-                  : 'rounded-full border border-white/12 bg-white/[0.02] px-4 py-1.5 text-xs text-paper/60 transition hover:text-paper'
-              }
-            >
-              登录
-            </button>
-            <button
-              type="button"
-              aria-pressed={mode === 'signUp'}
-              onClick={() => switchMode('signUp')}
-              className={
-                mode === 'signUp'
-                  ? 'rounded-full border border-gold/60 bg-gold/[0.12] px-4 py-1.5 text-xs text-gold'
-                  : 'rounded-full border border-white/12 bg-white/[0.02] px-4 py-1.5 text-xs text-paper/60 transition hover:text-paper'
-              }
-            >
-              注册
-            </button>
+            <ModeTab active={mode === 'signIn'} label="登录" onClick={() => switchMode('signIn')} />
+            <ModeTab active={mode === 'signUp'} label="注册" onClick={() => switchMode('signUp')} />
           </div>
 
           <form className="space-y-3" onSubmit={(event) => void submit(event)}>
@@ -143,18 +226,22 @@ export default function Account() {
                 placeholder="you@example.com"
               />
             </label>
-            <label className="block space-y-2">
-              <span className="text-xs text-paper/50">密码（至少 6 位）</span>
-              <Input
-                type="password"
-                autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
-                required
-                minLength={6}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="••••••"
-              />
-            </label>
+            {mode !== 'forgot' && (
+              <label className="block space-y-2">
+                <span className="text-xs text-paper/50">
+                  {mode === 'signUp' ? '密码（至少 8 位，含字母和数字）' : '密码'}
+                </span>
+                <Input
+                  type="password"
+                  autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
+                  required
+                  minLength={mode === 'signUp' ? 8 : 1}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="••••••••"
+                />
+              </label>
+            )}
             {mode === 'signUp' && (
               <label className="block space-y-2">
                 <span className="text-xs text-paper/50">确认密码</span>
@@ -162,10 +249,10 @@ export default function Account() {
                   type="password"
                   autoComplete="new-password"
                   required
-                  minLength={6}
+                  minLength={8}
                   value={confirm}
                   onChange={(event) => setConfirm(event.target.value)}
-                  placeholder="••••••"
+                  placeholder="••••••••"
                 />
               </label>
             )}
@@ -174,14 +261,54 @@ export default function Account() {
             {notice && <p className="text-sm leading-relaxed text-gold/85">{notice}</p>}
 
             <div className="flex items-center justify-between gap-3 pt-1">
-              <span className="text-xs text-paper/35">
-                {mode === 'signUp' ? '注册后需先完成邮箱验证' : '忘记密码可联系项目组重置'}
-              </span>
+              {mode === 'signIn' ? (
+                <button
+                  type="button"
+                  onClick={() => switchMode('forgot')}
+                  className="text-xs text-paper/40 transition hover:text-gold"
+                >
+                  忘记密码？
+                </button>
+              ) : mode === 'forgot' ? (
+                <button
+                  type="button"
+                  onClick={() => switchMode('signIn')}
+                  className="text-xs text-paper/40 transition hover:text-gold"
+                >
+                  返回登录
+                </button>
+              ) : (
+                <span className="text-xs text-paper/35">注册后需先完成邮箱验证</span>
+              )}
               <Button type="submit" disabled={busy}>
-                {busy ? '处理中…' : mode === 'signIn' ? '登录' : '注册'}
+                {busy
+                  ? '处理中…'
+                  : mode === 'signIn'
+                    ? '登录'
+                    : mode === 'signUp'
+                      ? '注册'
+                      : '发送重置邮件'}
               </Button>
             </div>
           </form>
+
+          {mode !== 'forgot' && (
+            <div className="space-y-3 border-t border-white/[0.07] pt-4">
+              <div className="flex items-center gap-3 text-[11px] text-paper/30">
+                <span className="h-px flex-1 bg-white/10" />
+                或
+                <span className="h-px flex-1 bg-white/10" />
+              </div>
+              <Button
+                variant="ghost"
+                className="w-full"
+                disabled={busy}
+                onClick={() => void signInWithGitHub()}
+              >
+                使用 GitHub 登录（无需邮箱验证）
+              </Button>
+            </div>
+          )}
 
           <p className="border-t border-white/[0.07] pt-4 text-xs leading-relaxed text-paper/40">
             登录后材料解析文本与答辩记录会同步到云端，原始文件始终只在浏览器内解析、不会上传。
