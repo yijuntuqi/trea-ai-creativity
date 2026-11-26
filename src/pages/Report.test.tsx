@@ -6,9 +6,10 @@ import type { Session } from '../types'
 import Report from './Report'
 import { saveSession } from '../lib/storage'
 
-const { navigateMock, toPngMock } = vi.hoisted(() => ({
+const { navigateMock, toPngMock, toJpegMock } = vi.hoisted(() => ({
   navigateMock: vi.fn(),
   toPngMock: vi.fn(),
+  toJpegMock: vi.fn(),
 }))
 
 vi.mock('react-router-dom', () => ({
@@ -28,7 +29,16 @@ vi.mock('recharts', () => {
   }
 })
 
-vi.mock('html-to-image', () => ({ toPng: toPngMock }))
+vi.mock('html-to-image', () => ({ toPng: toPngMock, toJpeg: toJpegMock }))
+
+vi.mock('jspdf', () => ({
+  jsPDF: vi.fn().mockImplementation(() => ({
+    internal: { pageSize: { getWidth: () => 210, getHeight: () => 297 } },
+    addImage: vi.fn(),
+    addPage: vi.fn(),
+    save: vi.fn(),
+  })),
+}))
 
 const questions = Array.from({ length: 6 }, (_, index) => ({
   id: `q${index + 1}`,
@@ -74,6 +84,8 @@ beforeEach(() => {
   navigateMock.mockClear()
   toPngMock.mockReset()
   toPngMock.mockResolvedValue('data:image/png;base64,stub')
+  toJpegMock.mockReset()
+  toJpegMock.mockResolvedValue('data:image/jpeg;base64,stub')
   localStorage.clear()
   saveSession(session)
 })
@@ -88,7 +100,7 @@ it('renders scores, risks, reviews and exports an image', async () => {
   expect(screen.getByText('复盘清单')).toBeInTheDocument()
   expect(screen.getAllByText(/点评：点评 \d/)).toHaveLength(6)
 
-  await user.click(screen.getByRole('button', { name: '保存报告图片' }))
+  await user.click(screen.getByRole('button', { name: '保存报告' }))
   await waitFor(() => expect(toPngMock).toHaveBeenCalledTimes(1))
   const details = Array.from(document.querySelectorAll('details'))
   expect(details.length).toBeGreaterThan(0)

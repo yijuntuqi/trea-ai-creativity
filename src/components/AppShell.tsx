@@ -1,7 +1,26 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import clsx from 'clsx'
 import { useAuthStore } from '../store/auth'
+
+function BrandMark() {
+  const [failed, setFailed] = useState(false)
+  if (failed) {
+    return (
+      <span className="grid h-9 w-9 place-items-center rounded-xl border border-gold/35 bg-gold/10 font-serif text-sm text-gold shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition group-hover:border-gold/60 group-hover:bg-gold/15">
+        预
+      </span>
+    )
+  }
+  return (
+    <img
+      src="/logo.png"
+      alt="答辩预演官"
+      onError={() => setFailed(true)}
+      className="h-9 w-9 rounded-xl border border-gold/35 bg-gold/10 object-cover shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition group-hover:border-gold/60"
+    />
+  )
+}
 
 function navClass({ isActive }: { isActive: boolean }): string {
   return clsx(
@@ -22,9 +41,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-ink/72 backdrop-blur-xl">
         <div className="mx-auto flex h-[4.25rem] w-full max-w-6xl items-center justify-between px-5">
           <Link to="/" className="group flex items-center gap-3">
-            <span className="grid h-9 w-9 place-items-center rounded-xl border border-gold/35 bg-gold/10 font-serif text-sm text-gold shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition group-hover:border-gold/60 group-hover:bg-gold/15">
-              预
-            </span>
+            <BrandMark />
             <span className="flex flex-col leading-none">
               <span className="font-serif text-[15px] tracking-[0.16em] text-paper transition group-hover:text-gold">
                 答辩预演官

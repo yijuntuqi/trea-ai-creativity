@@ -1,9 +1,19 @@
 import { useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { toPng } from 'html-to-image'
 import { getSession } from '../lib/storage'
 import { DEMO_SESSION } from '../mocks/demo'
 import { useSessionStore } from '../store/session'
+import {
+  EXPORT_OPTIONS,
+  captureReportImage,
+  downloadDataUrl,
+  downloadText,
+  exportPdf,
+  reportToDocHtml,
+  reportToMarkdown,
+  waitForLayout,
+  type ExportFormat,
+} from '../lib/export'
 import ScoreRadar from '../components/ScoreRadar'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -18,6 +28,7 @@ export default function Report() {
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
   const [openAll, setOpenAll] = useState(false)
+  const [format, setFormat] = useState<ExportFormat>('png')
 
   if (!session || !report) {
     return (
@@ -29,28 +40,43 @@ export default function Report() {
     )
   }
 
-  async function exportImage() {
-    if (!reportRef.current) return
+  async function handleExport() {
+    if (!session) return
     setExporting(true)
     setExportError(null)
-    // 先展开逐题点评，等 DOM 完成布局后再整页截图
+    // 任何格式导出都默认展开逐题点评：图片类需要 DOM 展开，文本类也保持一致
     setOpenAll(true)
     try {
-      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
-      const node = reportRef.current
-      const dataUrl = await toPng(node, {
-        backgroundColor: '#0B1220',
-        pixelRatio: 2,
-        width: node.scrollWidth,
-        height: node.scrollHeight,
-        style: { maxHeight: 'none', overflow: 'visible' },
-      })
-      const link = document.createElement('a')
-      link.href = dataUrl
-      link.download = `答辩预演报告-${id ?? 'report'}.png`
-      link.click()
+      await waitForLayout()
+      const base = `答辩预演报告-${id ?? 'report'}`
+      switch (format) {
+        case 'png':
+          downloadDataUrl(
+            await captureReportImage(reportRef.current!, 'png'),
+            `${base}.png`,
+          )
+          break
+        case 'jpg':
+          downloadDataUrl(
+            await captureReportImage(reportRef.current!, 'jpeg'),
+            `${base}.jpg`,
+          )
+          break
+        case 'pdf':
+          await exportPdf(
+            await captureReportImage(reportRef.current!, 'png'),
+            `${base}.pdf`,
+          )
+          break
+        case 'docx':
+          downloadText(reportToDocHtml(session), `${base}.doc`, 'application/msword')
+          break
+        case 'md':
+          downloadText(reportToMarkdown(session), `${base}.md`, 'text/markdown;charset=utf-8')
+          break
+      }
     } catch {
-      setExportError('导出失败，请截图保存')
+      setExportError('导出失败，请重试或直接截图保存')
     } finally {
       setExporting(false)
     }
@@ -63,12 +89,28 @@ export default function Report() {
           <p className="text-xs tracking-[0.3em] text-gold/70">预演报告</p>
           <h1 className="mt-2 font-serif text-3xl text-paper">本场答辩复盘</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" onClick={() => setOpenAll((prev) => !prev)}>
             {openAll ? '收起逐题点评' : '展开逐题点评'}
           </Button>
-          <Button variant="ghost" disabled={exporting} onClick={() => void exportImage()}>
-            {exporting ? '正在生成…' : '保存报告图片'}
+          <label className="flex items-center gap-1 text-xs text-paper/50">
+            格式
+            <select
+              aria-label="导出格式"
+              value={format}
+              onChange={(event) => setFormat(event.target.value as ExportFormat)}
+              disabled={exporting}
+              className="rounded-lg border border-white/12 bg-ink/70 px-2 py-1.5 text-sm text-paper outline-none transition focus:border-gold/60"
+            >
+              {EXPORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value} className="bg-ink">
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Button variant="ghost" disabled={exporting} onClick={() => void handleExport()}>
+            {exporting ? '正在生成…' : '保存报告'}
           </Button>
           <Button
             variant="ghost"
