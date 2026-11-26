@@ -6,7 +6,7 @@
 
 ## 在线体验
 
-部署完成后在此补充公网链接（Netlify）。
+https://trea-ai-creativity-p4nr.netlify.app/
 
 本地预览：
 

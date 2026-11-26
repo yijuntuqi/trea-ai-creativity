@@ -28,7 +28,7 @@
 
 - 以上内容与仓库提交记录一一对应，可按 commit 回溯。
 - 仓库 `main` 分支当前 HEAD：`2e493bb`。
-- 线上地址：`https://trea-ai-creativity.netlify.app/`（已公开）。
+- 线上地址：`https://trea-ai-creativity-p4nr.netlify.app/`（已公开）。
 - 新会话开始时，粘贴以下开场词即可让新助手恢复上下文：
 
 ```text

@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath } from 'node:url'
 
-const site = process.env.VITE_PROXY_SITE || 'https://trea-ai-creativity.netlify.app'
+const site = process.env.VITE_PROXY_SITE || 'https://trea-ai-creativity-p4nr.netlify.app'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
