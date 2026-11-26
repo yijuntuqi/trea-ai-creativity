@@ -1,5 +1,4 @@
 import { toJpeg, toPng } from 'html-to-image'
-import { jsPDF } from 'jspdf'
 import type { DimensionScores, Session } from '../types'
 import { disciplineLabel, typeLabel } from './labels'
 
@@ -69,6 +68,7 @@ export async function exportPdf(dataUrl: string, filename: string): Promise<void
     img.onerror = () => reject(new Error('image load failed'))
     img.src = dataUrl
   })
+  const { jsPDF } = await import('jspdf')
   const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
   const pageWidth = pdf.internal.pageSize.getWidth()
   const pageHeight = pdf.internal.pageSize.getHeight()
